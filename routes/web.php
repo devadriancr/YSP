@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\ProfileController;
 
 // Locale Switch Route
 Route::get('/locale/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
@@ -19,9 +20,9 @@ Route::middleware('auth')->group(function () {
     })->name('calendar');
 
     // profile pages
-    Route::get('/profile', function () {
-        return view('pages.profile', ['title' => 'Profile']);
-    })->name('profile');
+    Route::get('/profile', [ProfileController::class, 'show'])->name('profile');
+    Route::post('/profile/browser-sessions', [ProfileController::class, 'logoutOtherBrowserSessions'])
+        ->name('profile.browser-sessions.destroy');
 
     // form pages
     Route::get('/form-elements', function () {
@@ -79,4 +80,3 @@ Route::get('/error-404', function () {
     return view('pages.errors.error-404', ['title' => 'Error 404']);
 })->name('error-404');
 
-require __DIR__.'/auth.php';

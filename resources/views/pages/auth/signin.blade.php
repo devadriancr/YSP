@@ -15,7 +15,7 @@
                                 </div>
 
                                 <h1 class="text-title-sm sm:text-title-md my-2 font-semibold text-gray-800 dark:text-white/90">
-                                    {{ __('Portal de Proveedores') }}
+                                    {{ __('Iniciar Sesión') }}
                                 </h1>
                             </div>
                         <div>
@@ -24,7 +24,7 @@
                                     {{ $errors->first() }}
                                 </div>
                             @endif
-                            <form method="POST" action="{{ route('signin') }}">
+                            <form method="POST" action="{{ route('login.store') }}">
                                 @csrf
                                 <div class="space-y-5">
                                     <!-- Email -->
@@ -86,7 +86,7 @@
                                     <div>
                                         <button
                                             class="bg-brand-500 shadow-theme-xs hover:bg-brand-600 flex w-full items-center justify-center rounded-lg px-4 py-3 text-sm font-medium text-white transition">
-                                            {{ __('Iniciar Sesión') }}
+                                            {{ __('Continuar') }}
                                         </button>
                                     </div>
                                 </div>

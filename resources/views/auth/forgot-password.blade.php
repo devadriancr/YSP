@@ -1,25 +1,16 @@
-<x-guest-layout>
-    <div class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-        {{ __('Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.') }}
-    </div>
+@extends('layouts.fullscreen-layout')
 
-    <!-- Session Status -->
-    <x-auth-session-status class="mb-4" :status="session('status')" />
-
-    <form method="POST" action="{{ route('password.email') }}">
-        @csrf
-
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-        </div>
-
-        <div class="flex items-center justify-end mt-4">
-            <x-primary-button>
-                {{ __('Email Password Reset Link') }}
-            </x-primary-button>
-        </div>
-    </form>
-</x-guest-layout>
+@section('content')
+    <x-auth.layout :title="__('Reestablecer Contraseña')"
+        :description="__('Introduce tu dirección de correo electrónico.')"
+        :back-url="route('login')"
+        :back-label="__('Regresar al inicio de sesión')">
+        <form method="POST" action="{{ route('password.email') }}">
+            @csrf
+            <div class="space-y-5">
+                <x-auth.input :label="__('Correo Electrónico')" name="email" type="email" :value="old('email')" autofocus placeholder="Ejemplo@mail.com" />
+                <x-auth.button>{{ __('Continuar') }}</x-auth.button>
+            </div>
+        </form>
+    </x-auth.layout>
+@endsection

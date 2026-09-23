@@ -57,7 +57,7 @@
                                 {{ $errors->first() }}
                             </div>
                         @endif
-                        <form method="POST" action="{{ route('signup') }}">
+                        <form method="POST" action="{{ route('register.store') }}">
                             @csrf
                             <div class="space-y-5">
                                 <div class="grid grid-cols-1 gap-5 sm:grid-cols-2">
@@ -168,7 +168,7 @@
                         <div class="mt-5">
                             <p class="text-center text-sm font-normal text-gray-700 sm:text-start dark:text-gray-400">
                                 Already have an account?
-                                <a href="{{ route('signin') }}" class="text-brand-500 hover:text-brand-600 dark:text-brand-400">Sign In</a>
+                                <a href="{{ route('login') }}" class="text-brand-500 hover:text-brand-600 dark:text-brand-400">Sign In</a>
                             </p>
                         </div>
                     </div>
