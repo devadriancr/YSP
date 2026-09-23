@@ -46,6 +46,10 @@ document.addEventListener('DOMContentLoaded', () => {
         import('./components/chart/chart-13').then(module => module.initChartThirteen());
     }
 
+    if (document.querySelector('#loginCarousel')) {
+        import('./components/login-carousel').then(module => module.initLoginCarousel());
+    }
+
     // Calendar init
     if (document.querySelector('#calendar')) {
         import('./components/calendar-init').then(module => module.calendarInit());
