@@ -6,9 +6,7 @@
     <div class="space-y-6">
         <div class="rounded-2xl border border-gray-200 bg-white p-5 lg:p-6 dark:border-gray-800 dark:bg-white/[0.03]">
             <div class="flex flex-col items-start gap-6 sm:flex-row sm:items-center">
-                <div class="overflow-hidden rounded-full border border-gray-200 dark:border-gray-800">
-                    <img src="{{ asset('images/user/owner.png') }}" class="size-20" alt="{{ auth()->user()->name }}" />
-                </div>
+                <x-common.user-avatar size="size-20 text-2xl" class="border border-gray-200 dark:border-gray-800" />
                 <div class="text-start">
                     <h4 class="mb-1 text-lg font-semibold text-gray-800 dark:text-white/90">
                         {{ auth()->user()->name }}

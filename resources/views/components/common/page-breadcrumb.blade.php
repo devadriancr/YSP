@@ -11,7 +11,7 @@
                     class="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400"
                     href="{{ url('/') }}"
                 >
-                    Home
+                    Inicio
                     <svg
                         class="stroke-current rtl:rotate-180"
                         width="17"

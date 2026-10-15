@@ -50,6 +50,10 @@ document.addEventListener('DOMContentLoaded', () => {
         import('./components/login-carousel').then(module => module.initLoginCarousel());
     }
 
+    if (document.querySelector('[data-device-fields]')) {
+        import('./components/device-info').then(module => module.initDeviceInfo());
+    }
+
     // Calendar init
     if (document.querySelector('#calendar')) {
         import('./components/calendar-init').then(module => module.calendarInit());

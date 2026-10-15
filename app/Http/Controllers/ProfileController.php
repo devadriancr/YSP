@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\UserAgentInfo;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -49,34 +50,10 @@ class ProfileController extends Controller
                 'ip_address' => $session->ip_address,
                 'is_current' => $session->id === $request->session()->getId(),
                 'last_active' => Carbon::createFromTimestamp($session->last_activity)->diffForHumans(),
-                'platform' => $this->platform((string) $session->user_agent),
-                'browser' => $this->browser((string) $session->user_agent),
-                'is_mobile' => (bool) preg_match('/Android|iPhone|iPad|Mobile/i', (string) $session->user_agent),
+                'platform' => UserAgentInfo::platform((string) $session->user_agent),
+                'browser' => UserAgentInfo::browser((string) $session->user_agent),
+                'is_mobile' => UserAgentInfo::isMobile((string) $session->user_agent),
             ])
             ->all();
-    }
-
-    private function platform(string $agent): string
-    {
-        return match (true) {
-            (bool) preg_match('/iPhone|iPad|iOS/i', $agent) => 'iOS',
-            (bool) preg_match('/Android/i', $agent) => 'Android',
-            (bool) preg_match('/Windows/i', $agent) => 'Windows',
-            (bool) preg_match('/Macintosh|Mac OS/i', $agent) => 'macOS',
-            (bool) preg_match('/Linux/i', $agent) => 'Linux',
-            default => 'Desconocido',
-        };
-    }
-
-    private function browser(string $agent): string
-    {
-        return match (true) {
-            (bool) preg_match('/Edg/i', $agent) => 'Edge',
-            (bool) preg_match('/OPR|Opera/i', $agent) => 'Opera',
-            (bool) preg_match('/Firefox/i', $agent) => 'Firefox',
-            (bool) preg_match('/Chrome|CriOS/i', $agent) => 'Chrome',
-            (bool) preg_match('/Safari/i', $agent) => 'Safari',
-            default => 'Desconocido',
-        };
     }
 }

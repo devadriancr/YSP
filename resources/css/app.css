@@ -583,8 +583,10 @@ span.flatpickr-weekday,
 .fc .fc-view-harness {
   @apply max-w-full overflow-x-auto custom-scrollbar;
 }
-.fc-dayGridMonth-view.fc-view.fc-daygrid {
-  @apply min-w-[718px];
+/* Calendar: marked days fully opaque; today is marked with a ring instead of a fill */
+#calendar {
+  --fc-classic-background-event-opacity: 1;
+  --fc-classic-today: transparent !important;
 }
 .fc .fc-scrollgrid-section > * {
   border-right-width: 0;

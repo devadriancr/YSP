@@ -12,6 +12,7 @@
 
             <form method="POST" action="{{ route('two-factor.login.store') }}">
                 @csrf
+                <x-auth.device-fields />
                 <div class="space-y-5">
                     <div x-show="! recovery">
                         <label for="code" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">{{ __('Código') }}</label>

@@ -26,6 +26,7 @@
                             @endif
                             <form method="POST" action="{{ route('login.store') }}">
                                 @csrf
+                                <x-auth.device-fields />
                                 <div class="space-y-5">
                                     <!-- Email -->
                                     <div>

@@ -8,22 +8,22 @@ class MenuHelper
     {
         return [
             [
+                'icon' => 'calendar',
+                'name' => 'Calendario',
+                'path' => '/calendar',
+            ],
+            [
                 'icon' => 'dashboard',
                 'name' => 'Dashboard',
                 'subItems' => [
                     ['name' => 'Ecommerce', 'path' => '/'],
                 ],
             ],
-            [
-                'icon' => 'calendar',
-                'name' => 'Calendar',
-                'path' => '/calendar',
-            ],
-            [
-                'icon' => 'user-profile',
-                'name' => 'User Profile',
-                'path' => '/profile',
-            ],
+            // [
+            //     'icon' => 'user-profile',
+            //     'name' => 'User Profile',
+            //     'path' => '/profile',
+            // ],
             [
                 'name' => 'Forms',
                 'icon' => 'forms',

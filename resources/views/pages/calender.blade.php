@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
 @section('content')
-    <x-common.page-breadcrumb pageTitle="Calender" />
-    <x-calender-area />
+    <x-common.page-breadcrumb pageTitle="Calendario" />
+    <x-calender-area :events="$events ?? []" />
 @endsection

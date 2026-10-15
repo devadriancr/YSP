@@ -19,10 +19,12 @@
         "vite": "^7.0.4"
     },
     "dependencies": {
+        "@fingerprintjs/fingerprintjs": "^5.2.0",
         "@floating-ui/dom": "^1.7.4",
         "@popperjs/core": "^2.11.8",
         "alpinejs": "^3.14.9",
         "apexcharts": "^7.0.0",
+        "detectincognitojs": "^1.9.0",
         "flatpickr": "^4.6.13",
         "fullcalendar": "^7.0.2",
         "jsvectormap": "^1.7.0",

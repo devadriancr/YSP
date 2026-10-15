@@ -1,157 +1,160 @@
-<div>
-    <div class="overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3">
-        <div class="custom-calendar relative">
-            <div id="calendar"></div>
-        </div>
+@props([
+    // [['start' => 'Y-m-d', 'end' => 'Y-m-d' (optional, exclusive), 'title' => '', 'type' => 'danger|primary|warning|success|weekend', 'display' => 'block|background']]
+    'events' => [],
+])
+
+<div x-data="calendarDocuments({
+        labelsUrl: @js(route('calendar.labels', ['date' => '__DATE__'])),
+        diUrl: @js(route('calendar.delivery-instruction', ['date' => '__DATE__'])),
+    })"
+    @calendar-day.window="openDay($event.detail)"
+    @documents-status="inforDown = !$event.detail.ok"
+    data-calendar-card
+    {{ $attributes->merge(['class' => 'overflow-hidden rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/3']) }}>
+
+    <div x-show="inforDown" x-cloak
+        class="border-b border-warning-200 bg-warning-50 px-4 py-2.5 text-sm text-warning-700 sm:px-6 dark:border-warning-500/20 dark:bg-warning-500/10 dark:text-warning-400">
+        No se pudo consultar Infor, así que el calendario no muestra etiquetas ni DI. Recarga la página para intentarlo de nuevo.
     </div>
 
-    <!-- Modal -->
-    <div class="fixed inset-0 items-center justify-center hidden p-4 sm:p-5 overflow-y-auto modal z-99999" id="eventModal">
-        <div class="modal-close-btn fixed inset-0 h-full w-full bg-gray-400/50 backdrop-blur-[32px]"></div>
-        <div class="modal-dialog relative flex w-full max-w-175 flex-col overflow-y-auto rounded-3xl bg-white p-4 sm:p-6 lg:p-10 dark:bg-gray-900">
+    <div class="custom-calendar relative">
+        <div id="calendar" data-events='@json($events)' data-documents-url="{{ route('calendar.documents') }}"></div>
+    </div>
 
-            <!-- Close Button -->
-            <button class="modal-close-btn transition-colors absolute top-4 end-4 sm:top-5 sm:end-5 z-999 flex h-8 w-8 items-center justify-center rounded-full bg-gray-100 text-gray-400 hover:bg-gray-200 hover:text-gray-600 sm:h-10 sm:w-10 dark:bg-white/5 dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-gray-300">
-                <svg class="fill-current" width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path fill-rule="evenodd" clip-rule="evenodd" d="M6.04289 16.5418C5.65237 16.9323 5.65237 17.5655 6.04289 17.956C6.43342 18.3465 7.06658 18.3465 7.45711 17.956L11.9987 13.4144L16.5408 17.9565C16.9313 18.347 17.5645 18.347 17.955 17.9565C18.3455 17.566 18.3455 16.9328 17.955 16.5423L13.4129 12.0002L17.955 7.45808C18.3455 7.06756 18.3455 6.43439 17.955 6.04387C17.5645 5.65335 16.9313 5.65335 16.5408 6.04387L11.9987 10.586L7.45711 6.04439C7.06658 5.65386 6.43342 5.65386 6.04289 6.04439C5.65237 6.43491 5.65237 7.06808 6.04289 7.4586L10.5845 12.0002L6.04289 16.5418Z" fill="" />
-                </svg>
-            </button>
+    {{-- Day modal: documents available for the clicked day --}}
+    <template x-teleport="body">
+        <div x-show="open" x-cloak @keydown.escape.window="close()"
+            class="fixed inset-0 z-99999 flex items-end justify-center p-4 sm:items-center sm:p-6"
+            role="dialog" aria-modal="true" aria-labelledby="day-modal-title">
+            <div @click="close()" class="fixed inset-0 bg-gray-900/40 backdrop-blur-sm" x-transition.opacity></div>
 
-            <div class="flex flex-col px-1 sm:px-2 overflow-y-auto modal-content custom-scrollbar">
+            <div x-show="open"
+                x-transition:enter="transition ease-out duration-200"
+                x-transition:enter-start="opacity-0 translate-y-3 sm:translate-y-0 sm:scale-95"
+                x-transition:enter-end="opacity-100 translate-y-0 sm:scale-100"
+                x-transition:leave="transition ease-in duration-150"
+                x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
+                class="relative w-full max-w-md rounded-2xl border border-gray-200 bg-white shadow-theme-lg motion-reduce:transition-none dark:border-gray-800 dark:bg-gray-900">
 
-                <!-- Modal Header -->
-                <div class="modal-header">
-                    <h5 class="mb-2 font-semibold text-gray-800 modal-title text-theme-xl lg:text-2xl dark:text-white/90" id="eventModalLabel">
-                        Add Event
-                    </h5>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">
-                        Plan your next big moment: schedule or edit an event to stay on track
-                    </p>
-                </div>
-
-                <!-- Modal Body -->
-                <div class="mt-8 space-y-6 modal-body">
-
-                    <!-- Event Title -->
+                <div class="flex items-start justify-between gap-4 px-5 pt-5 sm:px-6 sm:pt-6">
                     <div>
-                        <label for="event-title" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                            Event Title
-                        </label>
-                        <input id="event-title" type="text" class="h-11 w-full rounded-lg border border-gray-300 bg-transparent px-4 py-2.5 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800" placeholder="Enter event title" />
+                        <p class="text-sm text-gray-500 capitalize dark:text-gray-400" x-text="weekday"></p>
+                        <h3 id="day-modal-title" class="text-lg font-semibold text-gray-800 dark:text-white/90" x-text="longDate"></h3>
                     </div>
-
-                    <!-- Event Color -->
-                    <div>
-                        <label class="mb-4 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                            Event Color
-                        </label>
-                        <div class="flex flex-wrap items-center gap-3 sm:gap-4">
-
-                            <!-- Danger -->
-                            <div class="n-chk">
-                                <div class="form-check form-check-danger form-check-inline">
-                                    <label class="flex items-center text-sm text-gray-700 form-check-label dark:text-gray-400 cursor-pointer" for="modalDanger">
-                                        <span class="relative">
-                                            <input class="sr-only form-check-input" type="radio" name="event-level" value="Danger" id="modalDanger" />
-                                            <span class="box me-2 flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 dark:border-gray-700">
-                                            </span>
-                                        </span>
-                                        Danger
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- Success -->
-                            <div class="n-chk">
-                                <div class="form-check form-check-success form-check-inline">
-                                    <label class="flex items-center text-sm text-gray-700 form-check-label dark:text-gray-400 cursor-pointer" for="modalSuccess">
-                                        <span class="relative">
-                                            <input class="sr-only form-check-input" type="radio" name="event-level" value="Success" id="modalSuccess" />
-                                            <span class="box me-2 flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 dark:border-gray-700">
-                                            </span>
-                                        </span>
-                                        Success
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- Primary -->
-                            <div class="n-chk">
-                                <div class="form-check form-check-primary form-check-inline">
-                                    <label class="flex items-center text-sm text-gray-700 form-check-label dark:text-gray-400 cursor-pointer" for="modalPrimary">
-                                        <span class="relative">
-                                            <input class="sr-only form-check-input" type="radio" name="event-level" value="Primary" id="modalPrimary" checked />
-                                            <span class="box me-2 flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 dark:border-gray-700">
-                                            </span>
-                                        </span>
-                                        Primary
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- Warning -->
-                            <div class="n-chk">
-                                <div class="form-check form-check-warning form-check-inline">
-                                    <label class="flex items-center text-sm text-gray-700 form-check-label dark:text-gray-400 cursor-pointer" for="modalWarning">
-                                        <span class="relative">
-                                            <input class="sr-only form-check-input" type="radio" name="event-level" value="Warning" id="modalWarning" />
-                                            <span class="box me-2 flex h-5 w-5 items-center justify-center rounded-full border border-gray-300 dark:border-gray-700">
-                                            </span>
-                                        </span>
-                                        Warning
-                                    </label>
-                                </div>
-                            </div>
-
-                        </div>
-                    </div>
-
-                    <!-- Start Date -->
-                    <div>
-                        <label for="event-start-date" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                            Enter Start Date
-                        </label>
-                        <div class="relative">
-                            <input id="event-start-date" type="date" class="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent bg-none py-2.5 ps-4 pe-11 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800 cursor-pointer" onclick="this.showPicker?.()" />
-                            <span class="absolute top-1/2 end-3.5 -translate-y-1/2 pointer-events-none text-gray-700 dark:text-gray-400">
-                                <svg class="fill-current" width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill-rule="evenodd" clip-rule="evenodd" d="M4.33317 0.0830078C4.74738 0.0830078 5.08317 0.418794 5.08317 0.833008V1.24967H8.9165V0.833008C8.9165 0.418794 9.25229 0.0830078 9.6665 0.0830078C10.0807 0.0830078 10.4165 0.418794 10.4165 0.833008V1.24967L11.3332 1.24967C12.2997 1.24967 13.0832 2.03318 13.0832 2.99967V4.99967V11.6663C13.0832 12.6328 12.2997 13.4163 11.3332 13.4163H2.6665C1.70001 13.4163 0.916504 12.6328 0.916504 11.6663V4.99967V2.99967C0.916504 2.03318 1.70001 1.24967 2.6665 1.24967L3.58317 1.24967V0.833008C3.58317 0.418794 3.91896 0.0830078 4.33317 0.0830078ZM4.33317 2.74967H2.6665C2.52843 2.74967 2.4165 2.8616 2.4165 2.99967V4.24967H11.5832V2.99967C11.5832 2.8616 11.4712 2.74967 11.3332 2.74967H9.6665H4.33317ZM11.5832 5.74967H2.4165V11.6663C2.4165 11.8044 2.52843 11.9163 2.6665 11.9163H11.3332C11.4712 11.9163 11.5832 11.8044 11.5832 11.6663V5.74967Z" fill="" />
-                                </svg>
-                            </span>
-                        </div>
-                    </div>
-
-                    <!-- End Date -->
-                    <div>
-                        <label for="event-end-date" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                            Enter End Date
-                        </label>
-                        <div class="relative">
-                            <input id="event-end-date" type="date" class="h-11 w-full appearance-none rounded-lg border border-gray-300 bg-transparent bg-none py-2.5 ps-4 pe-11 text-sm text-gray-800 shadow-theme-xs placeholder:text-gray-400 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30 dark:focus:border-brand-800 cursor-pointer" onclick="this.showPicker?.()" />
-                            <span class="absolute top-1/2 end-3.5 -translate-y-1/2 pointer-events-none text-gray-700 dark:text-gray-400">
-                                <svg class="fill-current" width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path fill-rule="evenodd" clip-rule="evenodd" d="M4.33317 0.0830078C4.74738 0.0830078 5.08317 0.418794 5.08317 0.833008V1.24967H8.9165V0.833008C8.9165 0.418794 9.25229 0.0830078 9.6665 0.0830078C10.0807 0.0830078 10.4165 0.418794 10.4165 0.833008V1.24967L11.3332 1.24967C12.2997 1.24967 13.0832 2.03318 13.0832 2.99967V4.99967V11.6663C13.0832 12.6328 12.2997 13.4163 11.3332 13.4163H2.6665C1.70001 13.4163 0.916504 12.6328 0.916504 11.6663V4.99967V2.99967C0.916504 2.03318 1.70001 1.24967 2.6665 1.24967L3.58317 1.24967V0.833008C3.58317 0.418794 3.91896 0.0830078 4.33317 0.0830078ZM4.33317 2.74967H2.6665C2.52843 2.74967 2.4165 2.8616 2.4165 2.99967V4.24967H11.5832V2.99967C11.5832 2.8616 11.4712 2.74967 11.3332 2.74967H9.6665H4.33317ZM11.5832 5.74967H2.4165V11.6663C2.4165 11.8044 2.52843 11.9163 2.6665 11.9163H11.3332C11.4712 11.9163 11.5832 11.8044 11.5832 11.6663V5.74967Z" fill="" />
-                                </svg>
-                            </span>
-                        </div>
-                    </div>
-
-                </div>
-
-                <!-- Modal Footer -->
-                <div class="modal-footer mt-6 flex items-center gap-3 sm:justify-end">
-                    <button type="button" class="modal-close-btn flex w-full justify-center rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 sm:w-auto dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/3">
-                        Close
-                    </button>
-                    <button type="button" class="btn btn-update-event bg-brand-500 hover:bg-brand-600 flex w-full justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-white sm:w-auto" style="display: none;" data-fc-event-public-id="">
-                        Update Changes
-                    </button>
-                    <button type="button" class="btn btn-add-event bg-brand-500 hover:bg-brand-600 flex w-full justify-center rounded-lg px-4 py-2.5 text-sm font-medium text-white sm:w-auto">
-                        Add Event
+                    <button type="button" x-ref="closeButton" @click="close()" aria-label="Cerrar"
+                        class="flex size-9 shrink-0 items-center justify-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700 focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:outline-none dark:hover:bg-white/5 dark:hover:text-white">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
                     </button>
                 </div>
 
+                <ul class="mt-4 divide-y divide-gray-100 border-t border-gray-100 dark:divide-gray-800 dark:border-gray-800">
+                    {{-- Identification cards --}}
+                    <li class="flex items-center gap-4 px-5 py-4 sm:px-6">
+                        <span class="flex size-10 shrink-0 items-center justify-center rounded-xl"
+                            :class="day.labels > 0 ? 'bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400' : 'bg-gray-100 text-gray-400 dark:bg-white/5'">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2" /><path d="M7 8h3v3H7zM14 8h3v3h-3zM7 14h3v3H7zM14 14h3v3h-3z" /></svg>
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-medium text-gray-800 dark:text-white/90">Etiquetas de identificación</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400"
+                                x-text="day.labels > 0 ? `${day.labels} ${day.labels === 1 ? 'etiqueta' : 'etiquetas'} para las entregas de este día` : 'No hay entregas con etiquetas este día'"></p>
+                        </div>
+                        <button type="button" x-show="day.labels > 0" @click="download('labels')" :disabled="loading !== null"
+                            class="inline-flex shrink-0 items-center gap-2 rounded-lg bg-success-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-success-700 focus-visible:ring-2 focus-visible:ring-success-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-wait disabled:opacity-70 dark:focus-visible:ring-offset-gray-900">
+                            <svg x-show="loading !== 'labels'" xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" /></svg>
+                            <svg x-show="loading === 'labels'" class="size-4 animate-spin motion-reduce:animate-none" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".3" stroke-width="3" /><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round" /></svg>
+                            <span x-text="loading === 'labels' ? 'Generando…' : 'Descargar'"></span>
+                        </button>
+                    </li>
+
+                    {{-- Delivery instruction --}}
+                    <li class="flex items-center gap-4 px-5 py-4 sm:px-6">
+                        <span class="flex size-10 shrink-0 items-center justify-center rounded-xl"
+                            :class="day.di > 0 ? 'bg-blue-light-50 text-blue-light-600 dark:bg-blue-light-500/15 dark:text-blue-light-400' : 'bg-gray-100 text-gray-400 dark:bg-white/5'">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="size-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6M8 13h8M8 17h5" /></svg>
+                        </span>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-sm font-medium text-gray-800 dark:text-white/90">Instrucción de entrega (DI)</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-400"
+                                x-text="day.di > 0 ? 'Programa de entregas a partir de este día' : 'No hay entregas programadas este día'"></p>
+                        </div>
+                        <button type="button" x-show="day.di > 0" @click="download('di')" :disabled="loading !== null"
+                            class="inline-flex shrink-0 items-center gap-2 rounded-lg bg-blue-light-600 px-3.5 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-light-700 focus-visible:ring-2 focus-visible:ring-blue-light-500 focus-visible:ring-offset-2 focus-visible:outline-none disabled:cursor-wait disabled:opacity-70 dark:focus-visible:ring-offset-gray-900">
+                            <svg x-show="loading !== 'di'" xmlns="http://www.w3.org/2000/svg" class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0-4-4m4 4 4-4M5 21h14" /></svg>
+                            <svg x-show="loading === 'di'" class="size-4 animate-spin motion-reduce:animate-none" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-opacity=".3" stroke-width="3" /><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" stroke-width="3" stroke-linecap="round" /></svg>
+                            <span x-text="loading === 'di' ? 'Generando…' : 'Descargar'"></span>
+                        </button>
+                    </li>
+                </ul>
+
+                <p x-show="error" x-cloak x-text="error" role="alert"
+                    class="mx-5 mb-5 rounded-lg bg-error-50 px-3 py-2 text-sm text-error-700 sm:mx-6 dark:bg-error-500/10 dark:text-error-400"></p>
             </div>
         </div>
-    </div>
+    </template>
 </div>
+
+@once
+    <script>
+        function calendarDocuments({ labelsUrl, diUrl }) {
+            const GENERIC_ERROR = 'No se pudo generar el documento. Revisa tu conexión e inténtalo de nuevo en unos minutos.';
+
+            return {
+                open: false,
+                inforDown: false,
+                loading: null,
+                error: '',
+                day: { date: '', labels: 0, di: 0 },
+
+                get dateObj() {
+                    return this.day.date ? new Date(`${this.day.date}T12:00:00`) : new Date();
+                },
+                get weekday() {
+                    return this.dateObj.toLocaleDateString('es-MX', { weekday: 'long' });
+                },
+                get longDate() {
+                    return this.dateObj.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+                },
+
+                openDay(detail) {
+                    this.day = { labels: 0, di: 0, ...detail };
+                    this.error = '';
+                    this.open = true;
+                    this.$nextTick(() => this.$refs.closeButton?.focus());
+                },
+                close() {
+                    if (this.loading) return;
+                    this.open = false;
+                },
+
+                // Fetches the PDF so the button can show progress and errors stay in the modal
+                async download(kind) {
+                    const url = (kind === 'labels' ? labelsUrl : diUrl).replace('__DATE__', this.day.date);
+                    this.loading = kind;
+                    this.error = '';
+                    try {
+                        const response = await fetch(url, { headers: { Accept: 'application/pdf' } });
+                        if (!response.ok) {
+                            this.error = response.status === 404
+                                ? 'Infor ya no tiene datos para este documento.'
+                                : GENERIC_ERROR;
+                            return;
+                        }
+                        const blob = await response.blob();
+                        const disposition = response.headers.get('Content-Disposition') || '';
+                        const match = disposition.match(/filename="?([^";]+)"?/);
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(blob);
+                        link.download = match ? match[1] : `${kind}.pdf`;
+                        link.click();
+                        setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+                    } catch (e) {
+                        this.error = GENERIC_ERROR;
+                    } finally {
+                        this.loading = null;
+                    }
+                },
+            };
+        }
+    </script>
+@endonce

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\ProfileController;
 
@@ -15,9 +16,12 @@ Route::middleware('auth')->group(function () {
     })->name('dashboard');
 
     // calender pages
-    Route::get('/calendar', function () {
-        return view('pages.calender', ['title' => 'Calendar']);
-    })->name('calendar');
+    Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar');
+    Route::get('/calendar/documents', [CalendarController::class, 'documents'])->name('calendar.documents');
+    Route::get('/calendar/{date}/identification-cards', [CalendarController::class, 'downloadLabels'])
+        ->name('calendar.labels');
+    Route::get('/calendar/{date}/delivery-instruction', [CalendarController::class, 'downloadDeliveryInstruction'])
+        ->name('calendar.delivery-instruction');
 
     // profile pages
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile');
