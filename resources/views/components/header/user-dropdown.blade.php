@@ -1,37 +1,11 @@
 <div class="relative" x-data="{
     isOpen: false,
     subDropdownOpen: false,
-    currentLocale: '{{ app()->getLocale() }}' || localStorage.getItem('locale') || (localStorage.getItem('dir') === 'rtl' ? 'ar' : 'en'),
+    currentLocale: '{{ app()->getLocale() }}',
     languages: [
-        {
-            id: 'en',
-            name: @js(__('Inglés')),
-            shortName: @js(__('Inglés')),
-            flag: 'flag-us.svg',
-            dir: 'ltr'
-        },
-        {
-            id: 'ar',
-            name: @js(__('Árabe (Arabia Saudita)')),
-            shortName: @js(__('Árabe')),
-            flag: 'flag-sa.svg',
-            badge: 'RTL',
-            dir: 'rtl'
-        },
-        {
-            id: 'es',
-            name: @js(__('Español')),
-            shortName: @js(__('Español')),
-            flag: 'flag-es.svg',
-            dir: 'ltr'
-        },
-        {
-            id: 'de',
-            name: @js(__('Alemán')),
-            shortName: @js(__('Alemán')),
-            flag: 'flag-de.svg',
-            dir: 'ltr'
-        }
+        { id: 'es', name: 'Español', shortName: 'ES', flag: 'flag-mx.svg', dir: 'ltr' },
+        { id: 'en', name: 'English', shortName: 'EN', flag: 'flag-us.svg', dir: 'ltr' },
+        { id: 'ja', name: '日本語', shortName: 'JA', flag: 'flag-jp.svg', dir: 'ltr' },
     ],
     get currentLang() {
         return this.languages.find(l => l.id === this.currentLocale) || this.languages[0];
@@ -48,7 +22,7 @@
     },
     selectLanguage(lang) {
         this.currentLocale = lang.id;
-        const dir = lang.dir || (lang.id === 'ar' ? 'rtl' : 'ltr');
+        const dir = lang.dir || 'ltr';
         localStorage.setItem('locale', lang.id);
         localStorage.setItem('dir', dir);
         document.documentElement.setAttribute('dir', dir);

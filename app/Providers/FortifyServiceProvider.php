@@ -39,13 +39,13 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::redirectUserForTwoFactorAuthenticationUsing(RedirectIfTwoFactorAuthenticatable::class);
 
-        Fortify::loginView(fn () => view('pages.auth.signin', ['title' => 'Sign In']));
-        Fortify::registerView(fn () => view('pages.auth.signup', ['title' => 'Sign Up']));
-        Fortify::requestPasswordResetLinkView(fn () => view('auth.forgot-password'));
-        Fortify::resetPasswordView(fn ($request) => view('auth.reset-password', ['request' => $request]));
-        Fortify::confirmPasswordView(fn () => view('auth.confirm-password'));
-        Fortify::verifyEmailView(fn () => view('auth.verify-email'));
-        Fortify::twoFactorChallengeView(fn () => view('auth.two-factor-challenge'));
+        Fortify::loginView(fn () => view('pages.auth.signin', ['title' => 'Iniciar sesión']));
+        Fortify::registerView(fn () => view('pages.auth.signup', ['title' => 'Registrarse']));
+        Fortify::requestPasswordResetLinkView(fn () => view('auth.forgot-password', ['title' => 'Restablecer contraseña']));
+        Fortify::resetPasswordView(fn ($request) => view('auth.reset-password', ['request' => $request, 'title' => 'Restablecer contraseña']));
+        Fortify::confirmPasswordView(fn () => view('auth.confirm-password', ['title' => 'Confirmar contraseña']));
+        Fortify::verifyEmailView(fn () => view('auth.verify-email', ['title' => 'Verifica tu correo']));
+        Fortify::twoFactorChallengeView(fn () => view('auth.two-factor-challenge', ['title' => 'Verificación en dos pasos']));
 
         RateLimiter::for('login', function (Request $request) {
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());

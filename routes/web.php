@@ -1,9 +1,11 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Admin;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UserController;
 
 // Locale Switch Route
 Route::get('/locale/{locale}', [LocaleController::class, 'switch'])->name('locale.switch');
@@ -18,10 +20,26 @@ Route::middleware('auth')->group(function () {
     // calender pages
     Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar');
     Route::get('/calendar/documents', [CalendarController::class, 'documents'])->name('calendar.documents');
+    Route::post('/calendar/vendor', [CalendarController::class, 'selectVendor'])->name('calendar.vendor');
     Route::get('/calendar/{date}/identification-cards', [CalendarController::class, 'downloadLabels'])
         ->name('calendar.labels');
     Route::get('/calendar/{date}/delivery-instruction', [CalendarController::class, 'downloadDeliveryInstruction'])
         ->name('calendar.delivery-instruction');
+
+    // users (admins only)
+    Route::resource('users', UserController::class)
+        ->except('show')
+        ->middleware('admin');
+
+    // data received from Infor and the syncs (admins only, read only)
+    Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
+        Route::get('/sync-runs', [Admin\SyncRunController::class, 'index'])->name('sync-runs.index');
+        Route::get('/vendors', [Admin\VendorController::class, 'index'])->name('vendors.index');
+        Route::get('/part-numbers', [Admin\PartNumberController::class, 'index'])->name('part-numbers.index');
+        Route::get('/purchase-order-lines', [Admin\PurchaseOrderLineController::class, 'index'])->name('purchase-order-lines.index');
+        Route::get('/delivery-rows', [Admin\DeliveryRowController::class, 'index'])->name('delivery-rows.index');
+        Route::get('/work-calendars', [Admin\WorkCalendarController::class, 'index'])->name('work-calendars.index');
+    });
 
     // profile pages
     Route::get('/profile', [ProfileController::class, 'show'])->name('profile');
@@ -81,6 +99,14 @@ Route::middleware('auth')->group(function () {
 
 // error pages
 Route::get('/error-404', function () {
-    return view('pages.errors.error-404', ['title' => 'Error 404']);
+    return view('pages.errors.error-404', ['title' => 'Página no encontrada']);
 })->name('error-404');
 
+
+// Any other address: goes through the web middleware (session, language) so the 404 page is in the user's language
+Route::fallback(function (Illuminate\Http\Request $request) {
+    // API callers (supply-relay) keep getting JSON
+    abort_if($request->expectsJson(), 404);
+
+    return response()->view('pages.errors.error-404', ['title' => 'Página no encontrada'], 404);
+});

@@ -11,28 +11,22 @@ class LocaleController extends Controller
      * Supported locales with their metadata.
      */
     public const SUPPORTED_LOCALES = [
-        "en" => [
-            "name" => "English",
-            "native" => "English (US)",
-            "flag" => "us",
-            "dir" => "ltr",
-        ],
-        "ar" => [
-            "name" => "Arabic",
-            "native" => "العربية",
-            "flag" => "sa",
-            "dir" => "rtl",
-        ],
         "es" => [
             "name" => "Spanish",
             "native" => "Español",
-            "flag" => "es",
+            "flag" => "mx",
             "dir" => "ltr",
         ],
-        "de" => [
-            "name" => "German",
-            "native" => "Deutsch",
-            "flag" => "de",
+        "en" => [
+            "name" => "English",
+            "native" => "English",
+            "flag" => "us",
+            "dir" => "ltr",
+        ],
+        "ja" => [
+            "name" => "Japanese",
+            "native" => "日本語",
+            "flag" => "jp",
             "dir" => "ltr",
         ],
     ];

@@ -46,7 +46,9 @@
             return this.openSubmenus[key] || false;
         },
         isActive(path) {
-            return window.location.pathname === path || '{{ $currentPath }}' === path.replace(/^\//, '');
+            // Also the pages inside a section, e.g. /users/5/edit keeps the users item highlighted
+            const inside = path !== '/' && window.location.pathname.startsWith(path + '/');
+            return window.location.pathname === path || inside || '{{ $currentPath }}' === path.replace(/^\//, '');
         }
     }"
     :class="{
@@ -57,7 +59,7 @@
     @mouseleave="$store.sidebar.setHovered(false)">
     <!-- Logo Section -->
     <div class="pt-8 pb-7 flex items-center gap-2" :class="(!$store.sidebar.isExpanded && !$store.sidebar.isHovered && !$store.sidebar.isMobileOpen) ? 'justify-center' : 'justify-between'">
-        <a href="/">
+        <a href="{{ route('calendar') }}">
             <x-common.app-logo label-class="hidden [.sidebar-expanded_&]:block" />
         </a>
     </div>
@@ -209,10 +211,5 @@
                 @endforeach
             </div>
         </nav>
-
-        <!-- Sidebar Widget -->
-        <div class="hidden [.sidebar-expanded_&]:block mt-auto">
-            @include('layouts.sidebar-widget')
-        </div>
     </div>
 </aside>

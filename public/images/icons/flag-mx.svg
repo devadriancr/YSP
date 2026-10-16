@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" id="flag-icons-mx" viewBox="0 0 512 512">
+  <path fill="#006847" d="M0 0h170.7v512H0z"/>
+  <path fill="#fff" d="M170.7 0h170.6v512H170.7z"/>
+  <path fill="#ce1126" d="M341.3 0H512v512H341.3z"/>
+  <!-- Simplified coat of arms: wreath, nopal and the eagle -->
+  <path fill="none" stroke="#5c8a2e" stroke-linecap="round" stroke-width="9" d="M206 262c4 34 24 58 50 64m50-64c-4 34-24 58-50 64"/>
+  <path fill="#2e7d32" d="M238 300c-6-14 2-26 12-24 4-12 18-12 20 2 12-2 16 14 6 22z"/>
+  <path fill="#8b5a2b" d="M224 246c0-30 18-52 40-54 6-12 22-12 26 0-6 2-10 6-10 12 12 8 18 22 16 40-4 26-24 42-44 42s-28-14-28-40z"/>
+  <path fill="#6b4220" d="M226 232c-16-6-24-22-20-38 14 4 22 16 26 30zm60-16c10-16 26-22 40-16-6 14-20 22-36 22z"/>
+  <path fill="#c8b100" d="M282 196l12 4-12 4z"/>
+  <path fill="none" stroke="#3e7cb1" stroke-width="5" d="M222 312h68"/>
+</svg>

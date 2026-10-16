@@ -2,7 +2,7 @@
 
 <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
     <h2 class="text-xl font-semibold text-gray-800 dark:text-white/90">
-        {{ $pageTitle }}
+        {{ __($pageTitle) }}
     </h2>
     <nav>
         <ol class="flex items-center gap-1.5">
@@ -11,7 +11,7 @@
                     class="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400"
                     href="{{ url('/') }}"
                 >
-                    Inicio
+                    {{ __('Inicio') }}
                     <svg
                         class="stroke-current rtl:rotate-180"
                         width="17"
@@ -31,7 +31,7 @@
                 </a>
             </li>
             <li class="text-sm text-gray-800 dark:text-white/90">
-                {{ $pageTitle }}
+                {{ __($pageTitle) }}
             </li>
         </ol>
     </nav>

@@ -112,16 +112,6 @@ return [
             // 'trust_server_certificate' => env('DB_TRUST_SERVER_CERTIFICATE', 'false'),
         ],
 
-        // Infor LX (AS400) through ODBC, same driver as test-iot
-        'infor' => [
-            'driver' => 'odbc',
-            'dsn' => env('INFOR_DSN', 'Driver={Client Access ODBC Driver (32-bit)};System=192.168.200.7;'),
-            'database' => env('INFOR_LIBRARY', 'LX834F01'),
-            'host' => env('INFOR_HOST', '192.168.200.7'),
-            'username' => env('INFOR_USERNAME'),
-            'password' => env('INFOR_PASSWORD'),
-        ],
-
     ],
 
     /*

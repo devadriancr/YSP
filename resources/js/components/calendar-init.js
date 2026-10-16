@@ -2,6 +2,7 @@ import { Calendar } from "fullcalendar";
 import dayGridPlugin from "fullcalendar/daygrid";
 import interactionPlugin from "fullcalendar/interaction";
 import esLocale from "fullcalendar/locales/es";
+import jaLocale from "fullcalendar/locales/ja";
 import themePlugin from "fullcalendar/themes/classic";
 
 import "fullcalendar/skeleton.css";
@@ -16,6 +17,9 @@ export function calendarInit() {
   if (!calendarEl) return;
 
   const isRtl = document.documentElement.dir === "rtl";
+  // Page language (es, en or ja) and the texts the server translated for this calendar
+  const lang = (document.documentElement.lang || "es").slice(0, 2);
+  const texts = { labels: "Etiquetas", di: "Instrucción de entrega", more: "más", ...JSON.parse(calendarEl.dataset.i18n || "{}") };
   let isMobile = window.innerWidth < 640;
 
   // Background colors for marked days, by event "type"
@@ -49,7 +53,7 @@ export function calendarInit() {
       bg: "border border-warning-100 bg-warning-50 dark:border-warning-500/20 dark:bg-warning-500/15",
       dot: "bg-warning-500",
     },
-    // Supplier documents from Infor
+    // Supplier documents (labels and DI)
     labels: {
       bg: "border border-success-200 bg-success-50 hover:bg-success-100 dark:border-success-500/30 dark:bg-success-500/15 dark:hover:bg-success-500/25",
       dot: "bg-success-500",
@@ -58,6 +62,11 @@ export function calendarInit() {
       bg: "border border-blue-light-200 bg-blue-light-50 hover:bg-blue-light-100 dark:border-blue-light-500/30 dark:bg-blue-light-500/15 dark:hover:bg-blue-light-500/25",
       dot: "bg-blue-light-500",
     },
+  };
+
+  const PAST_DOCUMENT_CLASSES = {
+    bg: "border border-gray-200 bg-gray-100 opacity-80 hover:opacity-100 dark:border-gray-700 dark:bg-white/5",
+    dot: "bg-gray-400 dark:bg-gray-500",
   };
 
   // Supplier documents per day ("2026-10-05" -> { labels, di }), filled by
@@ -71,7 +80,7 @@ export function calendarInit() {
       if (info.labels > 0) {
         events.push({
           id: `labels-${date}`,
-          title: "Etiquetas",
+          title: texts.labels,
           start: date,
           allDay: true,
           extendedProps: { type: "labels", document: true },
@@ -80,7 +89,7 @@ export function calendarInit() {
       if (info.di > 0) {
         events.push({
           id: `di-${date}`,
-          title: "Instrucción de entrega",
+          title: texts.di,
           start: date,
           allDay: true,
           extendedProps: { type: "di", document: true },
@@ -116,8 +125,10 @@ export function calendarInit() {
   // Opens the day modal (calender-area.blade.php listens for this event)
   function openDay(dateStr) {
     const date = dateStr.slice(0, 10);
+    if (visibleFrom && date < visibleFrom) return;
     const info = documentsByDay[date] || { labels: 0, di: 0 };
-    window.dispatchEvent(new CustomEvent("calendar-day", { detail: { date, ...info } }));
+    const past = Boolean(availableFrom) && date < availableFrom;
+    window.dispatchEvent(new CustomEvent("calendar-day", { detail: { date, past, ...info } }));
   }
 
   // Events come from the server as JSON in data-events:
@@ -151,10 +162,13 @@ export function calendarInit() {
     });
   }
 
-  // "septiembre 2026" instead of the locale default "septiembre de 2026"
-  const monthNameFormatter = new Intl.DateTimeFormat("es", { month: "long" });
-  const formatMonthYear = ({ date }) =>
-    `${monthNameFormatter.format(new Date(date.year, date.month, 1))} ${date.year}`;
+  // Month title: "octubre 2026" (instead of "octubre de 2026"), "October 2026", "2026年10月"
+  const monthNameFormatter = new Intl.DateTimeFormat(lang, { month: "long" });
+  const monthYearFormatter = new Intl.DateTimeFormat(lang, { year: "numeric", month: "long" });
+  const formatMonthYear = ({ date }) => {
+    const first = new Date(date.year, date.month, 1);
+    return lang === "es" ? `${monthNameFormatter.format(first)} ${date.year}` : monthYearFormatter.format(first);
+  };
 
   const bookmarkIcon = `<span><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="size-4.5 sm:size-5.5 text-brand-500"><path d="M19 3v17a1 1 0 01-1.496.868l-4.512-2.578a2 2 0 00-1.984 0l-4.512 2.578A1 1 0 015 20V3z" /></svg></span>`;
 
@@ -183,6 +197,10 @@ export function calendarInit() {
             : "px-1! py-2! sm:px-3! sm:py-3! md:px-5! md:py-4! text-xs! sm:text-sm! font-medium! text-gray-400 uppercase",
         dayCellClass: (data) => {
           if (data.inPopover) return "bg-transparent! p-3!";
+          if (isPast(data.date)) {
+            const viewable = !visibleFromDate || data.date >= visibleFromDate;
+            return `calendar-day-past p-1! sm:p-2! ${viewable ? "cursor-pointer" : ""}`;
+          }
           return `cursor-pointer bg-transparent! p-1! sm:p-2! ${data.isToday ? todayCellClass : ""}`;
         },
         dayCellInnerClass: (data) => {
@@ -190,14 +208,16 @@ export function calendarInit() {
             return "flex custom-scrollbar max-h-60 flex-col gap-1.5 overflow-y-auto";
           return "";
         },
-        dayCellTopInnerClass: (data) =>
-          data.isToday ? todayNumberClass : "text-gray-700 dark:text-gray-300",
+        dayCellTopInnerClass: (data) => {
+          if (isPast(data.date)) return "text-gray-400! line-through decoration-2 dark:text-gray-600!";
+          return data.isToday ? todayNumberClass : "text-gray-700 dark:text-gray-300";
+        },
         moreLinkClass:
           "border-0! bg-transparent! p-0! hover:bg-transparent! focus:outline-none",
         moreLinkContent: (args) => {
           if (isMobile) return { html: bookmarkIcon };
           return {
-            html: `<span class="fc-more-link-badge inline-flex items-center rounded-sm bg-brand-50 px-1 py-0.5 sm:px-1.5 text-[10px] sm:text-xs font-medium text-brand-600 transition-colors hover:bg-brand-100 dark:bg-brand-500/15 dark:text-brand-400 dark:hover:bg-brand-500/25">+${args.num} más</span>`,
+            html: `<span class="fc-more-link-badge inline-flex items-center rounded-sm bg-brand-50 px-1 py-0.5 sm:px-1.5 text-[10px] sm:text-xs font-medium text-brand-600 transition-colors hover:bg-brand-100 dark:bg-brand-500/15 dark:text-brand-400 dark:hover:bg-brand-500/25">+${args.num} ${texts.more}</span>`,
           };
         },
       },
@@ -214,13 +234,24 @@ export function calendarInit() {
     return Math.max(480, window.innerHeight - cardTop - extras - bottomGap);
   }
 
-  const navButtonClass =
-    "flex size-9! sm:size-10! p-0! items-center justify-center! rounded-lg! border! bg-transparent! border-gray-200! text-gray-700 hover:border-gray-200 hover:bg-gray-50! focus:shadow-none active:border-gray-200! active:bg-transparent! active:shadow-none! dark:border-gray-800! dark:text-gray-400 dark:hover:border-gray-800 dark:hover:bg-gray-900! dark:active:border-gray-800!";
+  // Documents can be opened from the Monday of the current week on (CalendarController::availableFrom)
+  const availableFrom = calendarEl.dataset.availableFrom || null;
+  const availableFromDate = availableFrom ? new Date(`${availableFrom}T00:00:00`) : null;
+  // Days before the current week are past: crossed out, they show what they had but cannot be downloaded
+  const isPast = (date) => Boolean(availableFromDate) && date < availableFromDate;
+  // The calendar goes back one month (CalendarController::visibleFrom)
+  const visibleFrom = calendarEl.dataset.visibleFrom || null;
+  const visibleFromDate = visibleFrom ? new Date(`${visibleFrom}T00:00:00`) : null;
+  const toolbar = calendarEl.closest("[data-calendar-card]")?.querySelector("[data-calendar-toolbar]");
+  const titleEl = toolbar?.querySelector("[data-calendar-title]");
+  const navButtons = Object.fromEntries(
+    [...(toolbar?.querySelectorAll("[data-calendar-nav]") ?? [])].map((button) => [button.dataset.calendarNav, button]),
+  );
 
   const calendar = new Calendar(calendarEl, {
     plugins: [themePlugin, dayGridPlugin, interactionPlugin],
-    locales: [esLocale],
-    locale: "es",
+    locales: [esLocale, jaLocale],
+    locale: lang,
     initialView: "dayGridMonth",
     direction: isRtl ? "rtl" : "ltr",
     height: computeHeight(),
@@ -229,49 +260,17 @@ export function calendarInit() {
     editable: false,
     selectable: false,
 
-    headerToolbar: {
-      start: "prev,next today",
-      center: "title",
-      end: "",
-    },
-    headerToolbarClass:
-      "sticky top-0! z-20! bg-white dark:bg-gray-900 flex-wrap! flex-row! items-center justify-between gap-3 sm:gap-4 [padding-inline:16px]! sm:[padding-inline:24px]! pt-4 sm:pt-6 pb-3 sm:pb-4",
-    toolbarTitleClass:
-      "text-base! sm:text-lg! font-semibold! capitalize text-gray-800 dark:text-white/90",
-    toolbarSectionClass: (info) => {
-      if (info.name === "start") {
-        return "ta-toolbar-section ta-toolbar-start order-2 flex items-center justify-start sm:order-1 gap-2";
+    // The toolbar is drawn in calender-area.blade.php (vendor | month | navigation)
+    headerToolbar: false,
+    datesSet(info) {
+      if (titleEl) titleEl.textContent = info.view.title;
+      const { currentStart, currentEnd } = info.view;
+      const today = new Date();
+      // One month back at most
+      if (navButtons.prev) {
+        navButtons.prev.disabled = Boolean(visibleFromDate) && currentStart <= visibleFromDate;
       }
-      if (info.name === "center") {
-        return "ta-toolbar-section ta-toolbar-center order-1 flex w-full items-center justify-start sm:order-2 sm:w-auto sm:justify-center";
-      }
-      if (info.name === "end") {
-        return "ta-toolbar-section ta-toolbar-end order-3 flex items-center justify-end";
-      }
-      return "ta-toolbar-section";
-    },
-    buttonGroupClass: "gap-2",
-    buttons: {
-      prev: {
-        iconContent: {
-          html: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="size-5 sm:size-6 bg-transparent text-gray-700 rtl:rotate-180 dark:text-gray-400"><path d="M15 18l-6-6 6-6" /></svg>`,
-        },
-        hint: "Mes anterior",
-        className: navButtonClass,
-      },
-      next: {
-        iconContent: {
-          html: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="size-5 sm:size-6 bg-transparent text-gray-700 rtl:rotate-180 dark:text-gray-400"><path d="M9 18l6-6-6-6" /></svg>`,
-        },
-        hint: "Mes siguiente",
-        className: navButtonClass,
-      },
-      today: {
-        text: "Hoy",
-        hint: "Ir a hoy",
-        className:
-          "h-9! sm:h-10! rounded-lg! border! border-gray-200! bg-transparent! px-3! sm:px-4! text-xs! sm:text-sm! font-medium! text-gray-700! hover:bg-gray-50! focus:shadow-none! disabled:opacity-50! dark:border-gray-800! dark:text-gray-400! dark:hover:bg-gray-900!",
-      },
+      if (navButtons.today) navButtons.today.disabled = today >= currentStart && today < currentEnd;
     },
 
     views: buildViews(),
@@ -308,7 +307,9 @@ export function calendarInit() {
     },
     eventContent(eventInfo) {
       const type = eventInfo.event.extendedProps?.type || "primary";
-      const colors = EVENT_COLOR_CLASSES[type] || EVENT_COLOR_CLASSES.primary;
+      // Documents of past days: muted, they can be looked at but not downloaded
+      const pastDocument = eventInfo.event.extendedProps?.document && isPast(eventInfo.event.start);
+      const colors = pastDocument ? PAST_DOCUMENT_CLASSES : EVENT_COLOR_CLASSES[type] || EVENT_COLOR_CLASSES.primary;
 
       // Phones: no room for text, each label becomes a solid bar in its color
       if (isMobile) {
@@ -327,6 +328,10 @@ export function calendarInit() {
       };
     },
   });
+
+  navButtons.prev?.addEventListener("click", () => calendar.prev());
+  navButtons.next?.addEventListener("click", () => calendar.next());
+  navButtons.today?.addEventListener("click", () => calendar.today());
 
   calendar.render();
   // Re-measure once the toolbar is laid out

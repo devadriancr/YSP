@@ -6,47 +6,47 @@ class MenuHelper
 {
     public static function getMainNavItems()
     {
-        return [
+        return array_values(array_filter([
             [
                 'icon' => 'calendar',
                 'name' => 'Calendario',
                 'path' => '/calendar',
             ],
-            [
-                'icon' => 'dashboard',
-                'name' => 'Dashboard',
-                'subItems' => [
-                    ['name' => 'Ecommerce', 'path' => '/'],
-                ],
-            ],
+            // [
+            //     'icon' => 'dashboard',
+            //     'name' => 'Panel',
+            //     'subItems' => [
+            //         ['name' => 'Comercio electrónico', 'path' => '/'],
+            //     ],
+            // ],
             // [
             //     'icon' => 'user-profile',
             //     'name' => 'User Profile',
             //     'path' => '/profile',
             // ],
-            [
-                'name' => 'Forms',
-                'icon' => 'forms',
-                'subItems' => [
-                    ['name' => 'Form Elements', 'path' => '/form-elements', 'pro' => false],
-                ],
-            ],
-            [
-                'name' => 'Tables',
-                'icon' => 'tables',
-                'subItems' => [
-                    ['name' => 'Basic Tables', 'path' => '/basic-tables', 'pro' => false]
-                ],
-            ],
-            [
-                'name' => 'Pages',
-                'icon' => 'pages',
-                'subItems' => [
-                    ['name' => 'Blank Page', 'path' => '/blank', 'pro' => false],
-                    ['name' => '404 Error', 'path' => '/error-404', 'pro' => false]
-                ],
-            ],
-        ];
+            // [
+            //     'name' => 'Formularios',
+            //     'icon' => 'forms',
+            //     'subItems' => [
+            //         ['name' => 'Elementos de formulario', 'path' => '/form-elements', 'pro' => false],
+            //     ],
+            // ],
+            // [
+            //     'name' => 'Tablas',
+            //     'icon' => 'tables',
+            //     'subItems' => [
+            //         ['name' => 'Tablas básicas', 'path' => '/basic-tables', 'pro' => false]
+            //     ],
+            // ],
+            // [
+            //     'name' => 'Páginas',
+            //     'icon' => 'pages',
+            //     'subItems' => [
+            //         ['name' => 'Página en blanco', 'path' => '/blank', 'pro' => false],
+            //         ['name' => 'Error 404', 'path' => '/error-404', 'pro' => false]
+            //     ],
+            // ],
+        ]));
     }
 
     public static function getOthersItems()
@@ -54,30 +54,52 @@ class MenuHelper
         return [
             [
                 'icon' => 'charts',
-                'name' => 'Charts',
+                'name' => 'Gráficas',
                 'subItems' => [
-                    ['name' => 'Line Chart', 'path' => '/line-chart', 'pro' => false],
-                    ['name' => 'Bar Chart', 'path' => '/bar-chart', 'pro' => false]
+                    ['name' => 'Gráfica de líneas', 'path' => '/line-chart', 'pro' => false],
+                    ['name' => 'Gráfica de barras', 'path' => '/bar-chart', 'pro' => false]
                 ],
             ],
             [
                 'icon' => 'ui-elements',
-                'name' => 'UI Elements',
+                'name' => 'Elementos de interfaz',
                 'subItems' => [
-                    ['name' => 'Alerts', 'path' => '/alerts', 'pro' => false],
-                    ['name' => 'Avatar', 'path' => '/avatars', 'pro' => false],
-                    ['name' => 'Badge', 'path' => '/badge', 'pro' => false],
-                    ['name' => 'Buttons', 'path' => '/buttons', 'pro' => false],
-                    ['name' => 'Images', 'path' => '/image', 'pro' => false],
+                    ['name' => 'Alertas', 'path' => '/alerts', 'pro' => false],
+                    ['name' => 'Avatares', 'path' => '/avatars', 'pro' => false],
+                    ['name' => 'Insignias', 'path' => '/badge', 'pro' => false],
+                    ['name' => 'Botones', 'path' => '/buttons', 'pro' => false],
+                    ['name' => 'Imágenes', 'path' => '/image', 'pro' => false],
                     ['name' => 'Videos', 'path' => '/videos', 'pro' => false],
                 ],
             ],
             [
                 'icon' => 'authentication',
-                'name' => 'Authentication',
+                'name' => 'Autenticación',
                 'subItems' => [
-                    ['name' => 'Sign In', 'path' => '/signin', 'pro' => false],
-                    ['name' => 'Sign Up', 'path' => '/signup', 'pro' => false],
+                    ['name' => 'Iniciar sesión', 'path' => '/signin', 'pro' => false],
+                    ['name' => 'Registrarse', 'path' => '/signup', 'pro' => false],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * Only for administrators: users, the syncs and the data received from Infor.
+     */
+    public static function getAdminItems()
+    {
+        return [
+            ['icon' => 'users', 'name' => 'Usuarios', 'path' => '/users'],
+            ['icon' => 'sync', 'name' => 'Sincronizaciones', 'path' => '/admin/sync-runs'],
+            [
+                'icon' => 'tables',
+                'name' => 'Datos de Infor',
+                'subItems' => [
+                    ['name' => 'Proveedores', 'path' => '/admin/vendors'],
+                    ['name' => 'Números de parte', 'path' => '/admin/part-numbers'],
+                    ['name' => 'Etiquetas', 'path' => '/admin/purchase-order-lines'],
+                    ['name' => 'Instrucción de entrega', 'path' => '/admin/delivery-rows'],
+                    ['name' => 'Calendario laboral', 'path' => '/admin/work-calendars'],
                 ],
             ],
         ];
@@ -85,16 +107,20 @@ class MenuHelper
 
     public static function getMenuGroups()
     {
-        return [
+        return array_values(array_filter([
             [
-                'title' => 'Menu',
+                'title' => 'Menú',
                 'items' => self::getMainNavItems()
             ],
-            [
-                'title' => 'Others',
-                'items' => self::getOthersItems()
-            ]
-        ];
+            auth()->user()?->isAdmin() ? [
+                'title' => 'Administración',
+                'items' => self::getAdminItems(),
+            ] : null,
+            // [
+            //     'title' => 'Otros',
+            //     'items' => self::getOthersItems()
+            // ]
+        ]));
     }
 
     public static function isActive($path)
@@ -110,6 +136,10 @@ class MenuHelper
             'ai-assistant' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M18.75 2.42969V7.70424M9.42261 13.673C10.0259 14.4307 10.9562 14.9164 12 14.9164C13.0438 14.9164 13.9742 14.4307 14.5775 13.673M20 12V18.5C20 19.3284 19.3284 20 18.5 20H5.5C4.67157 20 4 19.3284 4 18.5V12C4 7.58172 7.58172 4 12 4C16.4183 4 20 7.58172 20 12Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M18.75 2.42969V2.43969M9.50391 9.875L9.50391 9.885M14.4961 9.875V9.885" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
 
             'ecommerce' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M2.31641 4H3.49696C4.24468 4 4.87822 4.55068 4.98234 5.29112L5.13429 6.37161M5.13429 6.37161L6.23641 14.2089C6.34053 14.9493 6.97407 15.5 7.72179 15.5L17.0833 15.5C17.6803 15.5 18.2205 15.146 18.4587 14.5986L21.126 8.47023C21.5572 7.4795 20.8312 6.37161 19.7507 6.37161H5.13429Z" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path><path d="M7.7832 19.5H7.7932M16.3203 19.5H16.3303" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
+
+            'sync' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M20.25 12a8.25 8.25 0 0 1-14.2 5.7M3.75 12a8.25 8.25 0 0 1 14.2-5.7M20.25 4.5v4.25H16M3.75 19.5v-4.25H8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
+
+            'users' => '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M16 19.25v-1a3.75 3.75 0 0 0-3.75-3.75h-4.5A3.75 3.75 0 0 0 4 18.25v1M14.5 7.75a4.5 4.5 0 1 1-9 0 4.5 4.5 0 0 1 9 0ZM20 19.25v-1a3.75 3.75 0 0 0-2.75-3.6M15.75 3.65a4.5 4.5 0 0 1 0 8.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"></path></svg>',
 
             'calendar' => '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M8 2C8.41421 2 8.75 2.33579 8.75 2.75V3.75H15.25V2.75C15.25 2.33579 15.5858 2 16 2C16.4142 2 16.75 2.33579 16.75 2.75V3.75H18.5C19.7426 3.75 20.75 4.75736 20.75 6V9V19C20.75 20.2426 19.7426 21.25 18.5 21.25H5.5C4.25736 21.25 3.25 20.2426 3.25 19V9V6C3.25 4.75736 4.25736 3.75 5.5 3.75H7.25V2.75C7.25 2.33579 7.58579 2 8 2ZM8 5.25H5.5C5.08579 5.25 4.75 5.58579 4.75 6V8.25H19.25V6C19.25 5.58579 18.9142 5.25 18.5 5.25H16H8ZM19.25 9.75H4.75V19C4.75 19.4142 5.08579 19.75 5.5 19.75H18.5C18.9142 19.75 19.25 19.4142 19.25 19V9.75Z" fill="currentColor"></path></svg>',
 

@@ -66,7 +66,7 @@
     >
         <!-- Dropdown Header -->
         <div class="flex items-center justify-between pb-3 mb-3 border-b border-gray-100 dark:border-gray-800">
-            <h5 class="text-lg font-semibold text-gray-800 dark:text-white/90">Notification</h5>
+            <h5 class="text-lg font-semibold text-gray-800 dark:text-white/90">{{ __('Notificaciones') }}</h5>
 
             <button @click="closeDropdown()" class="text-gray-500 dark:text-gray-400" type="button">
                 <svg
@@ -95,80 +95,80 @@
                         'id' => 1,
                         'userName' => 'Terry Franci',
                         'userImage' => '/images/user/user-02.jpg',
-                        'action' => 'requests permission to change',
-                        'project' => 'Project - Nganter App',
-                        'type' => 'Project',
-                        'time' => '5 min ago',
+                        'action' => __('solicita permiso para cambiar'),
+                        'project' => __('Proyecto') . ' - Nganter App',
+                        'type' => __('Proyecto'),
+                        'time' => __('hace :minutes min', ['minutes' => 5]),
                         'status' => 'online',
                     ],
                     [
                         'id' => 2,
                         'userName' => 'Alex Johnson',
                         'userImage' => '/images/user/user-03.jpg',
-                        'action' => 'requests permission to change',
-                        'project' => 'Project - Nganter App',
-                        'type' => 'Project',
-                        'time' => '10 min ago',
+                        'action' => __('solicita permiso para cambiar'),
+                        'project' => __('Proyecto') . ' - Nganter App',
+                        'type' => __('Proyecto'),
+                        'time' => __('hace :minutes min', ['minutes' => 10]),
                         'status' => 'offline',
                     ],
                     [
                         'id' => 3,
                         'userName' => 'Sarah Williams',
                         'userImage' => '/images/user/user-04.jpg',
-                        'action' => 'requests permission to change',
-                        'project' => 'Project - Dashboard UI',
-                        'type' => 'Project',
-                        'time' => '15 min ago',
+                        'action' => __('solicita permiso para cambiar'),
+                        'project' => __('Proyecto') . ' - Dashboard UI',
+                        'type' => __('Proyecto'),
+                        'time' => __('hace :minutes min', ['minutes' => 15]),
                         'status' => 'online',
                     ],
                     [
                         'id' => 4,
                         'userName' => 'Mike Brown',
                         'userImage' => '/images/user/user-05.jpg',
-                        'action' => 'requests permission to change',
-                        'project' => 'Project - E-commerce',
-                        'type' => 'Project',
-                        'time' => '20 min ago',
+                        'action' => __('solicita permiso para cambiar'),
+                        'project' => __('Proyecto') . ' - E-commerce',
+                        'type' => __('Proyecto'),
+                        'time' => __('hace :minutes min', ['minutes' => 20]),
                         'status' => 'online',
                     ],
                     [
                         'id' => 5,
                         'userName' => 'Emma Davis',
                         'userImage' => '/images/user/user-06.jpg',
-                        'action' => 'requests permission to change',
-                        'project' => 'Project - Mobile App',
-                        'type' => 'Project',
-                        'time' => '25 min ago',
+                        'action' => __('solicita permiso para cambiar'),
+                        'project' => __('Proyecto') . ' - Mobile App',
+                        'type' => __('Proyecto'),
+                        'time' => __('hace :minutes min', ['minutes' => 25]),
                         'status' => 'offline',
                     ],
                     [
                         'id' => 6,
                         'userName' => 'John Smith',
                         'userImage' => '/images/user/user-07.jpg',
-                        'action' => 'requests permission to change',
-                        'project' => 'Project - Landing Page',
-                        'type' => 'Project',
-                        'time' => '30 min ago',
+                        'action' => __('solicita permiso para cambiar'),
+                        'project' => __('Proyecto') . ' - Landing Page',
+                        'type' => __('Proyecto'),
+                        'time' => __('hace :minutes min', ['minutes' => 30]),
                         'status' => 'online',
                     ],
                     [
                         'id' => 7,
                         'userName' => 'Lisa Anderson',
                         'userImage' => '/images/user/user-08.jpg',
-                        'action' => 'requests permission to change',
-                        'project' => 'Project - Blog System',
-                        'type' => 'Project',
-                        'time' => '35 min ago',
+                        'action' => __('solicita permiso para cambiar'),
+                        'project' => __('Proyecto') . ' - Blog System',
+                        'type' => __('Proyecto'),
+                        'time' => __('hace :minutes min', ['minutes' => 35]),
                         'status' => 'online',
                     ],
                     [
                         'id' => 8,
                         'userName' => 'David Wilson',
                         'userImage' => '/images/user/user-09.jpg',
-                        'action' => 'requests permission to change',
-                        'project' => 'Project - CRM Dashboard',
-                        'type' => 'Project',
-                        'time' => '40 min ago',
+                        'action' => __('solicita permiso para cambiar'),
+                        'project' => __('Proyecto') . ' - CRM Dashboard',
+                        'type' => __('Proyecto'),
+                        'time' => __('hace :minutes min', ['minutes' => 40]),
                         'status' => 'online',
                     ],
                 ];
@@ -215,8 +215,8 @@
             class="mt-3 flex justify-center rounded-lg border border-gray-300 bg-white p-3 text-theme-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
             @click.prevent="handleViewAllClick()"
         >
-            View All Notification
-        </a>
+                {{ __('Ver todas las notificaciones') }}
+            </a>
     </div>
     <!-- Dropdown End -->
 </div>

@@ -6,8 +6,9 @@ use BaconQrCode\Common\ErrorCorrectionLevel;
 use BaconQrCode\Encoder\Encoder;
 
 /**
- * QR and Code 39 barcodes as SVG data URIs, ready for an <img> in a PDF view.
- * Built from plain rectangles so dompdf renders them reliably.
+ * Geometry of the QR and Code 39 barcodes: the black rectangles to draw, in
+ * modules. App\Pdf\IdentificationCards draws them as vector shapes, so they
+ * print sharp at any size and the PDF is generated quickly.
  */
 final class Barcodes
 {
@@ -18,11 +19,16 @@ final class Barcodes
         '8' => 'wnnwnnwnn', '9' => 'nnwwnnwnn', '*' => 'nwnnwnwnn',
     ];
 
-    public static function qr(string $text): string
+    /**
+     * Modules per side and dark rectangles [x, y, width, height] counted from the top left.
+     *
+     * @return array{size: int, rects: list<array{int, int, int, int}>}
+     */
+    public static function qr(string $text): array
     {
         $matrix = Encoder::encode($text, ErrorCorrectionLevel::M(), 'ISO-8859-1', null, false)->getMatrix();
         $size = $matrix->getWidth();
-        $rects = '';
+        $rects = [];
 
         for ($y = 0; $y < $size; $y++) {
             $x = 0;
@@ -37,43 +43,39 @@ final class Barcodes
                 while ($x < $size && $matrix->get($x, $y) === 1) {
                     $x++;
                 }
-                $rects .= sprintf('<rect x="%d" y="%d" width="%d" height="1"/>', $start, $y, $x - $start);
+                $rects[] = [$start, $y, $x - $start, 1];
             }
         }
 
-        return self::svg($size, $size, $rects);
+        return ['size' => $size, 'rects' => $rects];
     }
 
-    /** Code 39 with start/stop characters; only digits are supported. */
-    public static function code39(string $digits, int $height = 40): string
+    /**
+     * Code 39 with start/stop characters; only digits are supported.
+     * Total width in narrow units and the bars [x, width].
+     *
+     * @return array{width: int, bars: list<array{int, int}>}
+     */
+    public static function code39(string $digits): array
     {
         $chars = '*'.preg_replace('/\D/', '', $digits).'*';
         $narrow = 1;
         $wide = 3;
         $x = 0;
-        $rects = '';
+        $bars = [];
 
         foreach (str_split($chars) as $char) {
             foreach (str_split(self::CODE39[$char]) as $i => $element) {
                 $width = $element === 'w' ? $wide : $narrow;
                 if ($i % 2 === 0) {
-                    $rects .= sprintf('<rect x="%d" y="0" width="%d" height="%d"/>', $x, $width, $height);
+                    $bars[] = [$x, $width];
                 }
                 $x += $width;
             }
             $x += $narrow; // gap between characters
         }
 
-        return self::svg($x, $height, $rects);
-    }
-
-    private static function svg(int $width, int $height, string $rects): string
-    {
-        $svg = sprintf(
-            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d" width="%d" height="%d" shape-rendering="crispEdges"><g fill="#000">%s</g></svg>',
-            $width, $height, $width, $height, $rects
-        );
-
-        return 'data:image/svg+xml;base64,'.base64_encode($svg);
+        // The SVG version kept the trailing gap in its width; same proportions on the label
+        return ['width' => $x, 'bars' => $bars];
     }
 }

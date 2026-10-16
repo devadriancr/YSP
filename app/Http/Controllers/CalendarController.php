@@ -2,36 +2,65 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Vendor;
+use App\Models\WorkCalendar;
+use App\Pdf\DeliveryInstruction;
+use App\Pdf\IdentificationCards;
 use App\Services\SupplierDocuments;
 use App\Support\InforCalendar;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
-use Throwable;
 
 class CalendarController extends Controller
 {
-    // Static copy of the Infor work calendar until the API is available
-    private const INFOR_YEAR = 2026;
-
-    private const INFOR_LEAP_YEAR = 0;
-
-    private const INFOR_DAYS = 'HHWW      W      W      W      WH     W      W      W      W     WW     WWH     W      W    H W      W      W      W    H W      W      W      W      W      W      W      W      W     AW      WHHHHHWW      W      W      W      W      W      W      W      W  H   W      W      W      W      W      W      W      W      WH     W      W      W      W      W   HHWW   H ';
-
-    public function index(): View
+    public function index(Request $request): View
     {
+        $year = now()->year;
+
+        // From the year of the previous month (January looks back at December) to the next one
+        $events = WorkCalendar::query()
+            ->where('facility', config('portal.calendar.facility'))
+            ->where('work_center', config('portal.calendar.work_center'))
+            ->whereBetween('year', [$this->visibleFrom()->year, $year + 1])
+            ->orderBy('year')
+            ->get()
+            ->flatMap(fn (WorkCalendar $calendar) => InforCalendar::toEvents(
+                $calendar->days,
+                $calendar->year,
+                $calendar->isLeapYear(),
+            ))
+            ->all();
+
+        $vendor = $this->currentVendor($request);
+
         return view('pages.calender', [
             'title' => 'Calendario',
-            'events' => InforCalendar::toEvents(
-                self::INFOR_DAYS,
-                self::INFOR_YEAR,
-                self::INFOR_LEAP_YEAR === 1,
-            ),
+            'events' => $events,
+            'vendors' => $request->user()->visibleVendors(),
+            'vendor' => $vendor,
+            'availableFrom' => $this->availableFrom()->toDateString(),
+            'visibleFrom' => $this->visibleFrom()->toDateString(),
         ]);
+    }
+
+    /**
+     * Changes the vendor whose documents the calendar shows; only one of the user's vendors.
+     */
+    public function selectVendor(Request $request): RedirectResponse
+    {
+        $data = $request->validate(['vendor' => ['required', 'integer']]);
+
+        $vendor = $request->user()->visibleVendors()->firstWhere('number', (int) $data['vendor']);
+
+        abort_if($vendor === null, 403, __('Ese proveedor no está asignado a tu usuario.'));
+
+        $request->session()->put('vendor_id', $vendor->id);
+
+        return redirect()->route('calendar');
     }
 
     /**
@@ -45,23 +74,15 @@ class CalendarController extends Controller
             'end' => ['required', 'date', 'after:start'],
         ]);
 
-        $from = CarbonImmutable::parse($data['start'])->startOfDay();
+        // Past days of the previous month are shown too (not downloadable)
+        $from = CarbonImmutable::parse($data['start'])->startOfDay()->max($this->visibleFrom());
         $to = CarbonImmutable::parse($data['end'])->startOfDay()->subDay(); // end is exclusive
-        $documents = $this->documentsFor($request);
 
-        try {
-            $days = Cache::remember(
-                "ysp:documents:v2:{$documents->vendor()}:{$from->format('Ymd')}:{$to->format('Ymd')}",
-                now()->addMinutes(config('infor.cache_minutes')),
-                fn () => $documents->calendarSummary($from, $to),
-            );
-        } catch (Throwable $e) {
-            report($e);
-
-            return response()->json(['message' => __('No se pudo consultar Infor.')], Response::HTTP_SERVICE_UNAVAILABLE);
+        if ($to->lt($from)) {
+            return response()->json([]);
         }
 
-        return response()->json($days);
+        return response()->json($this->documentsFor($request)->calendarSummary($from, $to));
     }
 
     public function downloadLabels(Request $request, string $date): Response
@@ -72,9 +93,9 @@ class CalendarController extends Controller
 
         abort_if($labels->isEmpty(), 404, __('No hay etiquetas para este día.'));
 
-        return Pdf::loadView('pdf.identification-cards', ['labels' => $labels])
-            ->setPaper('letter')
-            ->download("{$day->format('Ymd')}_{$documents->vendor()}_IDENTIFICATION_CARD.pdf");
+        $pdf = (new IdentificationCards)->render($labels, config('portal.company_name'));
+
+        return $this->pdf($pdf, "{$day->format('Ymd')}_{$documents->vendor()->number}_IDENTIFICATION_CARD.pdf");
     }
 
     public function downloadDeliveryInstruction(Request $request, string $date): Response
@@ -83,28 +104,65 @@ class CalendarController extends Controller
         $documents = $this->documentsFor($request);
         $parts = $documents->deliveryInstruction($day);
 
-        abort_if($parts->isEmpty(), 404, __('No hay DI para este día.'));
+        abort_if($parts->isEmpty(), 404, __('No hay instrucción de entrega para este día.'));
 
-        return Pdf::loadView('pdf.delivery-instruction', [
-            'parts' => $parts,
-            'vendor' => $documents->vendor(),
-            'vendorName' => $documents->vendorName(),
-            'issued' => $day,
-        ])
-            ->setPaper('letter')
-            ->download("{$day->format('Ymd')}_{$documents->vendor()}_DELIVERY_INSTRUCTION.pdf");
+        $vendor = $documents->vendor();
+        $pdf = (new DeliveryInstruction)->render($parts, $vendor->number, $vendor->name, $day, config('portal.company_name'));
+
+        return $this->pdf($pdf, "{$day->format('Ymd')}_{$vendor->number}_DELIVERY_INSTRUCTION.pdf");
     }
 
-    // TODO: use the vendor assigned to the user once the field exists
+    private function pdf(string $content, string $filename): Response
+    {
+        return response($content, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+        ]);
+    }
+
+    // Suppliers only see the documents of their vendors; planners and admins, of any vendor
     private function documentsFor(Request $request): SupplierDocuments
     {
-        return new SupplierDocuments(config('infor.default_vendor'));
+        $vendor = $this->currentVendor($request);
+
+        abort_if($vendor === null, 403, __('Tu usuario no tiene un proveedor asignado.'));
+
+        return new SupplierDocuments($vendor);
+    }
+
+    // The vendor chosen in the calendar, always one the user can see (the first one by default)
+    private function currentVendor(Request $request): ?Vendor
+    {
+        $vendors = $request->user()->visibleVendors();
+
+        return $vendors->firstWhere('id', $request->session()->get('vendor_id')) ?? $vendors->first();
     }
 
     private function parseDay(string $date): CarbonImmutable
     {
         abort_unless(preg_match('/^\d{4}-\d{2}-\d{2}$/', $date), 404);
 
-        return CarbonImmutable::createFromFormat('!Y-m-d', $date);
+        $day = CarbonImmutable::createFromFormat('!Y-m-d', $date);
+
+        abort_if($day->lt($this->availableFrom()), 404, __('Esta fecha ya pasó.'));
+
+        return $day;
+    }
+
+    /**
+     * Documents can be downloaded from the Monday of the current week on; earlier
+     * days are shown greyed out with what they had, without downloads.
+     */
+    private function availableFrom(): CarbonImmutable
+    {
+        return CarbonImmutable::now()->startOfWeek(CarbonImmutable::MONDAY)->startOfDay();
+    }
+
+    /**
+     * The calendar goes back one month: the whole previous month is visible.
+     */
+    private function visibleFrom(): CarbonImmutable
+    {
+        return CarbonImmutable::now()->subMonthNoOverflow()->startOfMonth();
     }
 }

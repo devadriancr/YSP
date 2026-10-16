@@ -14,7 +14,7 @@ class ProfileController extends Controller
     public function show(Request $request): View
     {
         return view('pages.profile', [
-            'title' => 'Profile',
+            'title' => 'Perfil',
             'sessions' => $this->browserSessions($request),
             'sessionsSupported' => config('session.driver') === 'database',
         ]);

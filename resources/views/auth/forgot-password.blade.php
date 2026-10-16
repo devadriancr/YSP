@@ -1,10 +1,10 @@
 @extends('layouts.fullscreen-layout')
 
 @section('content')
-    <x-auth.layout :title="__('Reestablecer Contraseña')"
+    <x-auth.layout :title="__('Restablecer contraseña')"
         :description="__('Introduce tu dirección de correo electrónico.')"
-        :back-url="route('login')"
-        :back-label="__('Regresar al inicio de sesión')">
+        :backUrl="route('login')"
+        :backLabel="__('Regresar al inicio de sesión')">
         <form method="POST" action="{{ route('password.email') }}">
             @csrf
             <div class="space-y-5">
