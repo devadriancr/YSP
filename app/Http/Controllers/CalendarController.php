@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\DocumentDownload;
+use App\Models\User;
 use App\Models\Vendor;
 use App\Models\WorkCalendar;
 use App\Pdf\DeliveryInstruction;
@@ -64,8 +66,9 @@ class CalendarController extends Controller
     }
 
     /**
-     * Days with identification cards and/or delivery instruction in the
-     * visible range: { "2026-10-05": { "labels": 12, "di": 30 }, ... }
+     * Days with identification cards and/or delivery instruction in the visible range,
+     * and the last download of each: { "2026-10-05": { "labels": 12, "di": 30,
+     * "downloads": { "labels": { "at": "...", "by": "Ana", "changed": false } } }, ... }
      */
     public function documents(Request $request): JsonResponse
     {
@@ -82,7 +85,20 @@ class CalendarController extends Controller
             return response()->json([]);
         }
 
-        return response()->json($this->documentsFor($request)->calendarSummary($from, $to));
+        $documents = $this->documentsFor($request);
+
+        return response()->json($this->withDownloads($documents, $documents->calendarSummary($from, $to), $from, $to));
+    }
+
+    /**
+     * What the identification cards and the delivery instruction of a day contain,
+     * for the day modal. Past days too: they can be looked at, not downloaded.
+     */
+    public function details(Request $request, string $date): JsonResponse
+    {
+        $day = $this->parseVisibleDay($date);
+
+        return response()->json($this->documentsFor($request)->details($day));
     }
 
     public function downloadLabels(Request $request, string $date): Response
@@ -94,6 +110,7 @@ class CalendarController extends Controller
         abort_if($labels->isEmpty(), 404, __('No hay etiquetas para este día.'));
 
         $pdf = (new IdentificationCards)->render($labels, config('portal.company_name'));
+        $this->recordDownload($request, $documents, DocumentDownload::LABELS, $day);
 
         return $this->pdf($pdf, "{$day->format('Ymd')}_{$documents->vendor()->number}_IDENTIFICATION_CARD.pdf");
     }
@@ -108,8 +125,70 @@ class CalendarController extends Controller
 
         $vendor = $documents->vendor();
         $pdf = (new DeliveryInstruction)->render($parts, $vendor->number, $vendor->name, $day, config('portal.company_name'));
+        $this->recordDownload($request, $documents, DocumentDownload::DELIVERY_INSTRUCTION, $day);
 
         return $this->pdf($pdf, "{$day->format('Ymd')}_{$vendor->number}_DELIVERY_INSTRUCTION.pdf");
+    }
+
+    /**
+     * Adds the last download of each document and day by the supplier, and whether Infor
+     * changed its data afterwards (the fingerprint then differs from the current one).
+     * Downloads by planners and admins are kept but not shown: they are not the supplier's.
+     */
+    private function withDownloads(SupplierDocuments $documents, array $days, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        $latest = $documents->vendor()->documentDownloads()
+            ->where('user_role', User::SUPPLIER)
+            ->whereDate('date', '>=', $from->toDateString())
+            ->whereDate('date', '<=', $to->toDateString())
+            ->orderByDesc('downloaded_at')
+            ->orderByDesc('id')
+            ->get()
+            ->unique(fn (DocumentDownload $download) => $download->document.'|'.$download->date->toDateString());
+
+        if ($latest->isEmpty()) {
+            return $days;
+        }
+
+        $datesOf = fn (string $document) => $latest->where('document', $document)
+            ->map(fn (DocumentDownload $download) => $download->date->toDateString())->values()->all();
+        $current = [
+            DocumentDownload::LABELS => $documents->labelFingerprints($datesOf(DocumentDownload::LABELS)),
+            DocumentDownload::DELIVERY_INSTRUCTION => $documents->deliveryInstructionFingerprints($datesOf(DocumentDownload::DELIVERY_INSTRUCTION)),
+        ];
+
+        foreach ($latest as $download) {
+            $date = $download->date->toDateString();
+            // A day whose data was removed after the download still shows that it was downloaded
+            $days[$date] ??= ['labels' => 0, 'di' => 0];
+            $days[$date]['downloads'][$download->document] = [
+                'at' => $download->downloaded_at->timezone(config('app.timezone'))->toIso8601String(),
+                'by' => $download->user_name,
+                'changed' => $download->fingerprint !== $current[$download->document][$date],
+            ];
+        }
+
+        ksort($days);
+
+        return $days;
+    }
+
+    private function recordDownload(Request $request, SupplierDocuments $documents, string $document, CarbonImmutable $day): void
+    {
+        $date = $day->toDateString();
+        $fingerprint = $document === DocumentDownload::LABELS
+            ? $documents->labelFingerprints([$date])[$date]
+            : $documents->deliveryInstructionFingerprints([$date])[$date];
+
+        $documents->vendor()->documentDownloads()->create([
+            'user_id' => $request->user()->id,
+            'user_name' => $request->user()->name,
+            'user_role' => $request->user()->role,
+            'document' => $document,
+            'date' => $date,
+            'fingerprint' => $fingerprint,
+            'downloaded_at' => now(),
+        ]);
     }
 
     private function pdf(string $content, string $filename): Response
@@ -138,15 +217,31 @@ class CalendarController extends Controller
         return $vendors->firstWhere('id', $request->session()->get('vendor_id')) ?? $vendors->first();
     }
 
+    // Downloads: from the Monday of the current week on
     private function parseDay(string $date): CarbonImmutable
     {
-        abort_unless(preg_match('/^\d{4}-\d{2}-\d{2}$/', $date), 404);
-
-        $day = CarbonImmutable::createFromFormat('!Y-m-d', $date);
+        $day = $this->parseDate($date);
 
         abort_if($day->lt($this->availableFrom()), 404, __('Esta fecha ya pasó.'));
 
         return $day;
+    }
+
+    // Looking at the details: every day the calendar shows, past ones included
+    private function parseVisibleDay(string $date): CarbonImmutable
+    {
+        $day = $this->parseDate($date);
+
+        abort_if($day->lt($this->visibleFrom()), 404);
+
+        return $day;
+    }
+
+    private function parseDate(string $date): CarbonImmutable
+    {
+        abort_unless(preg_match('/^\d{4}-\d{2}-\d{2}$/', $date), 404);
+
+        return CarbonImmutable::createFromFormat('!Y-m-d', $date);
     }
 
     /**

@@ -64,7 +64,7 @@
                 </svg>
             </button>
 
-            <!-- Search Bar (desktop only) -->
+            {{-- Search bar (desktop only): hidden for now, it does not search anything yet
             <div class="hidden xl:block">
                 <form>
                     <div class="relative">
@@ -92,6 +92,7 @@
                     </div>
                 </form>
             </div>
+            --}}
         </div>
 
         <!-- Application Menu (mobile) and Right Side Actions (desktop) -->
@@ -117,8 +118,9 @@
                     </svg>
                 </button>
 
-                <!-- Notification Dropdown -->
+                {{-- Notifications: hidden for now, the dropdown only has sample data
                 <x-header.notification-dropdown />
+                --}}
             </div>
 
             <!-- User Dropdown -->

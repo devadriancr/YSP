@@ -15,6 +15,7 @@ use Carbon\CarbonImmutable;
  *
  * Working days produce no event, weekends are shaded and every other day
  * gets its own label ("No Laboral", "Medio turno"; unknown codes show the code).
+ * "kind" says what the day is without depending on the language of the title.
  */
 final class InforCalendar
 {
@@ -27,7 +28,7 @@ final class InforCalendar
     public const HALF_SHIFT = 'A';
 
     /**
-     * @return array<int, array{start: string, end: string, title: string, type: string, display: string}>
+     * @return array<int, array{start: string, end: string, title: string, type: string, kind: string, display: string}>
      */
     public static function toEvents(string $days, int $year, bool $isLeapYear): array
     {
@@ -54,6 +55,7 @@ final class InforCalendar
                     'end' => $firstDay->addDays($i)->toDateString(), // exclusive
                     'title' => '',
                     'type' => 'weekend',
+                    'kind' => 'rest',
                     'display' => 'background',
                 ];
                 $restStart = null;
@@ -76,14 +78,14 @@ final class InforCalendar
     }
 
     /**
-     * @return array{title: string, type: string}
+     * @return array{title: string, type: string, kind: string}
      */
     private static function label(string $code): array
     {
         return match ($code) {
-            self::HOLIDAY => ['title' => __('No Laboral'), 'type' => 'danger'],
-            self::HALF_SHIFT => ['title' => __('Medio turno'), 'type' => 'primary'],
-            default => ['title' => $code, 'type' => 'primary'],
+            self::HOLIDAY => ['title' => __('No Laboral'), 'type' => 'danger', 'kind' => 'holiday'],
+            self::HALF_SHIFT => ['title' => __('Medio turno'), 'type' => 'primary', 'kind' => 'half_shift'],
+            default => ['title' => $code, 'type' => 'primary', 'kind' => 'other'],
         };
     }
 }

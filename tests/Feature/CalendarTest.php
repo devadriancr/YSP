@@ -68,11 +68,11 @@ test('infor calendar string becomes labels and shaded weekends', function () {
     $events = InforCalendar::toEvents($days, 2026, false);
 
     expect($events)->toBe([
-        ['start' => '2026-01-01', 'end' => '2026-01-02', 'title' => 'No Laboral', 'type' => 'danger', 'display' => 'block'],
-        ['start' => '2026-01-02', 'end' => '2026-01-03', 'title' => 'No Laboral', 'type' => 'danger', 'display' => 'block'],
-        ['start' => '2026-01-03', 'end' => '2026-01-05', 'title' => '', 'type' => 'weekend', 'display' => 'background'],
-        ['start' => '2026-01-11', 'end' => '2026-01-12', 'title' => '', 'type' => 'weekend', 'display' => 'background'],
-        ['start' => '2026-01-12', 'end' => '2026-01-13', 'title' => 'Medio turno', 'type' => 'primary', 'display' => 'block'],
+        ['start' => '2026-01-01', 'end' => '2026-01-02', 'title' => 'No Laboral', 'type' => 'danger', 'kind' => 'holiday', 'display' => 'block'],
+        ['start' => '2026-01-02', 'end' => '2026-01-03', 'title' => 'No Laboral', 'type' => 'danger', 'kind' => 'holiday', 'display' => 'block'],
+        ['start' => '2026-01-03', 'end' => '2026-01-05', 'title' => '', 'type' => 'weekend', 'kind' => 'rest', 'display' => 'background'],
+        ['start' => '2026-01-11', 'end' => '2026-01-12', 'title' => '', 'type' => 'weekend', 'kind' => 'rest', 'display' => 'background'],
+        ['start' => '2026-01-12', 'end' => '2026-01-13', 'title' => 'Medio turno', 'type' => 'primary', 'kind' => 'half_shift', 'display' => 'block'],
     ]);
 });
 

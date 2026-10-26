@@ -57,4 +57,9 @@ class Vendor extends Model
     {
         return $this->hasMany(DeliveryRow::class);
     }
+
+    public function documentDownloads(): HasMany
+    {
+        return $this->hasMany(DocumentDownload::class);
+    }
 }

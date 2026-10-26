@@ -25,6 +25,7 @@ Route::middleware('auth')->group(function () {
         ->name('calendar.labels');
     Route::get('/calendar/{date}/delivery-instruction', [CalendarController::class, 'downloadDeliveryInstruction'])
         ->name('calendar.delivery-instruction');
+    Route::get('/calendar/{date}/details', [CalendarController::class, 'details'])->name('calendar.details');
 
     // users (admins only)
     Route::resource('users', UserController::class)

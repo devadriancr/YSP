@@ -19,7 +19,7 @@ export function calendarInit() {
   const isRtl = document.documentElement.dir === "rtl";
   // Page language (es, en or ja) and the texts the server translated for this calendar
   const lang = (document.documentElement.lang || "es").slice(0, 2);
-  const texts = { labels: "Etiquetas", di: "Instrucción de entrega", more: "más", ...JSON.parse(calendarEl.dataset.i18n || "{}") };
+  const texts = { labels: "Etiquetas", di: "Instrucción de entrega", more: "más", downloaded: "Descargada", changed: "Cambió después de la descarga", ...JSON.parse(calendarEl.dataset.i18n || "{}") };
   let isMobile = window.innerWidth < 640;
 
   // Background colors for marked days, by event "type"
@@ -83,7 +83,7 @@ export function calendarInit() {
           title: texts.labels,
           start: date,
           allDay: true,
-          extendedProps: { type: "labels", document: true },
+          extendedProps: { type: "labels", document: true, download: info.downloads?.labels ?? null },
         });
       }
       if (info.di > 0) {
@@ -92,7 +92,7 @@ export function calendarInit() {
           title: texts.di,
           start: date,
           allDay: true,
-          extendedProps: { type: "di", document: true },
+          extendedProps: { type: "di", document: true, download: info.downloads?.di ?? null },
         });
       }
     }
@@ -122,13 +122,36 @@ export function calendarInit() {
     }
   }
 
+  // After a download: check mark; if Infor changed the data afterwards, a warning instead
+  function downloadIcon(download) {
+    if (!download) return "";
+    if (download.changed) {
+      return `<span class="ms-1 shrink-0 text-warning-500" title="${texts.changed}" aria-label="${texts.changed}"><svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4M12 17h.01" /><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg></span>`;
+    }
+    return `<span class="ms-1 shrink-0 text-success-600 dark:text-success-400" title="${texts.downloaded}" aria-label="${texts.downloaded}"><svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg></span>`;
+  }
+
+  // What each day is in the work calendar ("2026-10-12" -> "holiday" | "half_shift" | "rest" | "other");
+  // working days are not in it
+  const dayKinds = {};
+  function markDays(start, end, kind) {
+    const day = new Date(`${start}T12:00:00`);
+    const last = end ? new Date(`${end}T12:00:00`) : new Date(day.getTime() + 86400000); // end is exclusive
+    while (day < last) {
+      const key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+      dayKinds[key] = kind;
+      day.setDate(day.getDate() + 1);
+    }
+  }
+
   // Opens the day modal (calender-area.blade.php listens for this event)
   function openDay(dateStr) {
     const date = dateStr.slice(0, 10);
     if (visibleFrom && date < visibleFrom) return;
     const info = documentsByDay[date] || { labels: 0, di: 0 };
     const past = Boolean(availableFrom) && date < availableFrom;
-    window.dispatchEvent(new CustomEvent("calendar-day", { detail: { date, past, ...info } }));
+    const workday = dayKinds[date] || null;
+    window.dispatchEvent(new CustomEvent("calendar-day", { detail: { date, past, workday, ...info } }));
   }
 
   // Events come from the server as JSON in data-events:
@@ -141,6 +164,10 @@ export function calendarInit() {
       raw = JSON.parse(calendarEl.dataset.events || "[]");
     } catch (e) {
       console.error("Invalid calendar events JSON", e);
+    }
+
+    for (const event of raw) {
+      if (event.kind) markDays(event.start, event.end, event.kind);
     }
 
     return raw.map((event, index) => {
@@ -320,9 +347,10 @@ export function calendarInit() {
 
       return {
         html: `
-          <div class="flex items-center rounded-md py-1 ps-1.5 pe-2 sm:rounded-lg sm:py-1.5 sm:ps-2.5 sm:pe-3 ${colors.bg}">
+          <div class="flex max-w-full items-center rounded-md py-1 ps-1.5 pe-2 sm:rounded-lg sm:py-1.5 sm:ps-2.5 sm:pe-3 ${colors.bg}">
             <div class="ms-0 me-1 h-2.5 w-1 shrink-0 rounded-full sm:me-2 sm:h-3.5 ${colors.dot}"></div>
-            <div class="fc-event-title truncate p-0 text-[11px] font-medium text-gray-700 sm:text-xs dark:text-white">${eventInfo.event.title || ""}</div>
+            <div class="fc-event-title min-w-0 flex-1 truncate p-0 text-[11px] font-medium text-gray-700 sm:text-xs dark:text-white">${eventInfo.event.title || ""}</div>
+            ${downloadIcon(eventInfo.event.extendedProps?.download)}
           </div>
         `,
       };
@@ -332,6 +360,9 @@ export function calendarInit() {
   navButtons.prev?.addEventListener("click", () => calendar.prev());
   navButtons.next?.addEventListener("click", () => calendar.next());
   navButtons.today?.addEventListener("click", () => calendar.today());
+
+  // A finished download (calender-area.blade.php) shows its check mark right away
+  window.addEventListener("calendar-document-downloaded", () => calendar.refetchEvents());
 
   calendar.render();
   // Re-measure once the toolbar is laid out
