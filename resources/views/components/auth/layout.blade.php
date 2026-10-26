@@ -13,13 +13,13 @@
 
     <div class="flex flex-1 items-center justify-center py-10">
         <div class="w-full max-w-md">
-            <a href="/" class="block w-fit mx-auto">
+            <a href="/" class="mx-auto mb-6 block w-fit">
                 <img src="/images/logo/logo-ykm.svg" alt="Y-Tec Keylex México" class="h-24 w-auto" />
             </a>
             {{-- Kept for screen readers when hidden visually --}}
             <h1 @class([
                 'sr-only' => $hideTitle,
-                'text-title-sm mt-6 text-center font-semibold text-gray-800 dark:text-white/90' => ! $hideTitle,
+                'text-title-sm text-center font-semibold text-gray-800 dark:text-white/90' => ! $hideTitle,
             ])>
                 {{ $title }}
             </h1>

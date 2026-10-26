@@ -7,24 +7,13 @@
             @csrf
             <x-auth.device-fields />
 
-            <!-- Email -->
-            <div>
-                <label for="email" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
-                    {{ __('Correo Electrónico') }}
-                </label>
-                <div class="relative">
-                    <svg class="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 stroke-current text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
+            <x-auth.input :label="__('Correo Electrónico')" name="email" type="email" :value="old('email')" autocomplete="username" autofocus placeholder="Ejemplo@mail.com">
+                <x-slot:icon>
+                    <svg class="h-4 w-4 stroke-current" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 0 1-2.25 2.25h-15a2.25 2.25 0 0 1-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0 0 19.5 4.5h-15a2.25 2.25 0 0 0-2.25 2.25m19.5 0v.243a2.25 2.25 0 0 1-1.07 1.916l-7.5 4.615a2.25 2.25 0 0 1-2.36 0L3.32 8.91a2.25 2.25 0 0 1-1.07-1.916V6.75" />
                     </svg>
-                    <input type="email" id="email" name="email" value="{{ old('email') }}" required autofocus autocomplete="username"
-                        placeholder="Ejemplo@mail.com"
-                        @class([
-                            'shadow-theme-xs h-11 w-full rounded-lg border bg-transparent py-2.5 ps-9 pe-4 text-sm text-gray-800 placeholder:text-gray-400 focus:ring-3 focus:outline-hidden dark:bg-gray-900 dark:text-white/90 dark:placeholder:text-white/30',
-                            'border-gray-300 focus:border-brand-300 focus:ring-brand-500/10 dark:border-gray-700 dark:focus:border-brand-800' => ! $errors->has('email'),
-                            'border-error-500 focus:border-error-500 focus:ring-error-500/10 dark:border-error-500' => $errors->has('email'),
-                        ]) />
-                </div>
-            </div>
+                </x-slot:icon>
+            </x-auth.input>
 
             <!-- Password -->
             <div>
@@ -75,11 +64,7 @@
             </div>
 
             <!-- Submit: disabled while sending -->
-            <x-auth.button ::disabled="sending" class="gap-2 font-semibold disabled:cursor-wait disabled:opacity-70">
-                <svg x-show="sending" x-cloak class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8v4a4 4 0 0 0-4 4H4Z"></path>
-                </svg>
+            <x-auth.button loading="sending">
                 <span x-text="sending ? @js(__('Accediendo…')) : @js(__('Iniciar Sesión'))">{{ __('Iniciar Sesión') }}</span>
             </x-auth.button>
         </form>
