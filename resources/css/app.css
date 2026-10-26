@@ -1,10 +1,26 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@100..900&display=swap') layer(base);
 @import 'prismjs/themes/prism.min.css';
 @import 'swiper/css';
 @import 'swiper/css/effect-fade';
 @import 'swiper/css/pagination';
 @import 'tailwindcss';
 
+/* Outfit (variable, 100–900) served with the app instead of Google Fonts: nothing depends on a CDN */
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/outfit/outfit-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Outfit';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/outfit/outfit-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
@@ -588,21 +604,29 @@ span.flatpickr-weekday,
   --fc-classic-background-event-opacity: 1;
   --fc-classic-today: transparent !important;
 }
-/* Calendar: days before the current week are past, with diagonal lines (they open without downloads) */
+/* Calendar: days that can no longer be downloaded (more than a week back) are greyed out */
 #calendar .calendar-day-past {
+  background-color: var(--color-gray-50) !important;
+}
+.dark #calendar .calendar-day-past {
+  background-color: rgb(255 255 255 / 0.02) !important;
+}
+/* Calendar: weekends (rest days of the work calendar) filled with diagonal lines */
+#calendar .calendar-weekend {
+  opacity: 1 !important;
   background-color: var(--color-gray-50) !important;
   background-image: repeating-linear-gradient(
     -45deg,
-    transparent 0 7px,
-    var(--color-gray-200) 7px 8px
+    transparent 0 6px,
+    var(--color-gray-200) 6px 7px
   ) !important;
 }
-.dark #calendar .calendar-day-past {
-  background-color: var(--color-gray-900) !important;
+.dark #calendar .calendar-weekend {
+  background-color: rgb(255 255 255 / 0.02) !important;
   background-image: repeating-linear-gradient(
     -45deg,
-    transparent 0 7px,
-    var(--color-gray-800) 7px 8px
+    transparent 0 6px,
+    var(--color-gray-800) 6px 7px
   ) !important;
 }
 .fc .fc-scrollgrid-section > * {

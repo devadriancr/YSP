@@ -8,14 +8,15 @@ import flatpickr from 'flatpickr';
 import 'flatpickr/dist/flatpickr.min.css';
 // FullCalendar
 import { Calendar } from 'fullcalendar';
-
-
+import { calendarDocuments } from './components/calendar-documents';
 
 window.Alpine = Alpine;
 window.createPopper = createPopper;
 window.ApexCharts = ApexCharts;
 window.flatpickr = flatpickr;
 window.FullCalendar = Calendar;
+
+Alpine.data('calendarDocuments', calendarDocuments);
 
 Alpine.start();
 

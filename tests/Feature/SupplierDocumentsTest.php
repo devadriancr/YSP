@@ -7,7 +7,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 
 uses(RefreshDatabase::class);
 
-// Thursday: documents are available from Monday 2026-10-12 on
+// Thursday: documents can be downloaded from one week back (2026-10-08) on
 beforeEach(fn () => $this->travelTo('2026-10-15 09:00'));
 
 /** Vendor with one part and one PO line of 25 pieces in boxes of 10, due on the date. */
@@ -147,45 +147,77 @@ test('identification cards and delivery instruction download as pdf', function (
 });
 
 test('past days show what they had but cannot be downloaded', function () {
-    $user = supplierOf(vendorWithLine(400191, '2026-10-09'));
+    $user = supplierOf(vendorWithLine(400191, '2026-10-07'));
 
     $this->actingAs($user)
         ->getJson('/calendar/documents?start=2026-09-28&end=2026-11-09')
-        ->assertExactJson(['2026-10-09' => ['labels' => 3, 'di' => 1]]);
+        ->assertExactJson(['2026-10-07' => ['labels' => 3, 'di' => 1]]);
 
     $this->actingAs($user)
-        ->get('/calendar/2026-10-09/identification-cards')
+        ->get('/calendar/2026-10-07/identification-cards')
         ->assertNotFound();
 
     $this->actingAs($user)
-        ->get('/calendar/2026-10-09/delivery-instruction')
+        ->get('/calendar/2026-10-07/delivery-instruction')
+        ->assertNotFound();
+
+    $this->actingAs($user)
+        ->get('/calendar/2026-10-07/delivery-instruction/excel')
         ->assertNotFound();
 });
 
-test('the calendar goes back one month at most', function () {
-    $august = vendorWithLine(400191, '2026-08-28');
-    $september = $august->purchaseOrderLines()->first()->replicate()->fill(['due_date' => '2026-09-01']);
-    $september->save();
+test('the calendar goes back to january of this year', function () {
+    $vendor = vendorWithLine(400191, '2025-12-30');
+    $january = $vendor->purchaseOrderLines()->first()->replicate()->fill(['due_date' => '2026-01-05']);
+    $january->save();
 
-    $this->actingAs(supplierOf($august))
-        ->getJson('/calendar/documents?start=2026-08-01&end=2026-09-05')
-        ->assertExactJson(['2026-09-01' => ['labels' => 3, 'di' => 0]]);
+    $this->actingAs(supplierOf($vendor))
+        ->getJson('/calendar/documents?start=2025-12-29&end=2026-02-09')
+        ->assertExactJson(['2026-01-05' => ['labels' => 3, 'di' => 0]]);
 
-    $this->actingAs(supplierOf($august))
+    $this->actingAs(supplierOf($vendor))
         ->get('/calendar')
-        ->assertSee('data-visible-from="2026-09-01"', false);
+        ->assertSee('data-visible-from="2026-01-01"', false);
 });
 
-test('the current week is available from monday', function () {
-    $user = supplierOf(vendorWithLine(400191, '2026-10-12'));
-
-    $this->actingAs($user)
-        ->getJson('/calendar/documents?start=2026-10-01&end=2026-11-01')
-        ->assertExactJson(['2026-10-12' => ['labels' => 3, 'di' => 1]]);
+test('documents can be downloaded from one week back', function () {
+    $vendor = vendorWithLine(400191, '2026-10-08');
+    $dayBefore = $vendor->purchaseOrderLines()->first()->replicate()->fill(['due_date' => '2026-10-07']);
+    $dayBefore->save();
+    $user = supplierOf($vendor);
 
     $this->actingAs($user)
         ->get('/calendar')
-        ->assertSee('data-available-from="2026-10-12"', false);
+        ->assertSee('data-available-from="2026-10-08"', false);
+
+    $this->actingAs($user)->get('/calendar/2026-10-08/identification-cards')->assertOk();
+    $this->actingAs($user)->get('/calendar/2026-10-07/identification-cards')->assertNotFound();
+});
+
+test('the delivery instruction also downloads as excel', function () {
+    $vendor = vendorWithLine(400191, '2026-10-20');
+    $user = supplierOf($vendor);
+
+    $response = $this->actingAs($user)
+        ->get('/calendar/2026-10-20/delivery-instruction/excel')
+        ->assertOk()
+        ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+        ->assertDownload('20261020_400191_DELIVERY_INSTRUCTION.xlsx');
+
+    $path = tempnam(sys_get_temp_dir(), 'xlsx');
+    file_put_contents($path, $response->getContent());
+    $zip = new ZipArchive;
+    expect($zip->open($path))->toBeTrue();
+    $sheet = $zip->getFromName('xl/worksheets/sheet1.xml');
+    $zip->close();
+    unlink($path);
+
+    expect($sheet)->toContain('BDTS-28-911A')->toContain('BRACKET')->toContain('Pronóstico')
+        // 40 pieces in boxes of 10
+        ->toContain('<v>40</v>')->toContain('<v>4</v>');
+
+    // It counts as a download of the delivery instruction
+    expect($vendor->documentDownloads()->where('document', DocumentDownload::DELIVERY_INSTRUCTION)->count())->toBe(1);
 });
 
 // Download flags
@@ -308,7 +340,7 @@ test('the details of a day list the labels and the delivery instruction without 
                 'shift' => 'A', 'warehouse' => 'YK1', 'quantity' => 25, 'boxes' => 3,
             ]],
             'di' => [[
-                'part' => 'BDTS-28-911A', 'description' => 'BRACKET', 'quantity' => 55, 'boxes' => 6,
+                'part' => 'BDTS-28-911A', 'description' => 'BRACKET', 'snp' => 10, 'quantity' => 55, 'boxes' => 6,
                 'rows' => [
                     ['date' => '2026-10-20', 'origin' => 'FR', 'order' => null, 'quantity' => 40, 'boxes' => 4],
                     ['date' => '2026-10-27', 'origin' => 'FP', 'order' => '777-2', 'quantity' => 15, 'boxes' => 2],
@@ -320,14 +352,14 @@ test('the details of a day list the labels and the delivery instruction without 
     expect($response->getContent())->not->toContain('qr');
 });
 
-test('past days can be looked at in detail, but not before the visible month', function () {
-    $user = supplierOf(vendorWithLine(400191, '2026-10-09'));
+test('past days of this year can be looked at in detail, but not the year before', function () {
+    $user = supplierOf(vendorWithLine(400191, '2026-02-09'));
 
-    $this->actingAs($user)->getJson('/calendar/2026-10-09/details')
+    $this->actingAs($user)->getJson('/calendar/2026-02-09/details')
         ->assertOk()
         ->assertJsonPath('labels.0.order', '12345-1');
 
-    $this->getJson('/calendar/2026-08-31/details')->assertNotFound();
+    $this->getJson('/calendar/2025-12-31/details')->assertNotFound();
     $this->getJson('/calendar/no-es-fecha/details')->assertNotFound();
 });
 
@@ -337,7 +369,7 @@ test('the details only show the vendor of the user', function () {
     $this->actingAs(supplierOf(vendorWithLine(400191, '2026-10-21')))
         ->getJson('/calendar/2026-10-20/details')
         ->assertExactJson(['labels' => [], 'di' => [[
-            'part' => 'BDTS-28-911A', 'description' => 'BRACKET', 'quantity' => 40, 'boxes' => 4,
+            'part' => 'BDTS-28-911A', 'description' => 'BRACKET', 'snp' => 10, 'quantity' => 40, 'boxes' => 4,
             'rows' => [['date' => '2026-10-21', 'origin' => 'FR', 'order' => null, 'quantity' => 40, 'boxes' => 4]],
         ]]]);
 });

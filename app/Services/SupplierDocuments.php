@@ -161,8 +161,18 @@ class SupplierDocuments
             'boxes' => $this->boxCount($line->quantity, $line->partNumber->standard_pack_quantity),
         ])->values()->all();
 
-        // Same rows and boxes as the delivery instruction PDF, grouped by part
-        $di = $this->vendor->deliveryRows()
+        return ['labels' => $labels, 'di' => $this->deliveryInstructionDetails($date)];
+    }
+
+    /**
+     * Delivery instruction issued on a day grouped by part, with the same rows and boxes
+     * as the PDF: for the day modal and the Excel download.
+     *
+     * @return list<array{part: string, description: ?string, snp: int, quantity: int, boxes: int, rows: list<array>}>
+     */
+    public function deliveryInstructionDetails(CarbonImmutable $date): array
+    {
+        return $this->vendor->deliveryRows()
             ->with('partNumber')
             ->whereDate('due_date', '>=', $date->toDateString())
             ->get()
@@ -181,7 +191,7 @@ class SupplierDocuments
 
                     return [
                         'date' => $row->due_date->toDateString(),
-                        // FP planned, FR forecast; anything else comes from a purchase order
+                        // FP firm (planned), FR forecast; anything else comes from a purchase order
                         'origin' => in_array($row->origin, ['FP', 'FR'], true) ? $row->origin : 'PO',
                         'order' => $row->number ? "{$row->number}-{$row->line}" : null,
                         'quantity' => $quantity,
@@ -192,6 +202,7 @@ class SupplierDocuments
                 return [
                     'part' => PartNumber::format($part->number, $part->project),
                     'description' => $part->description,
+                    'snp' => $snp,
                     'quantity' => $items->sum('quantity'),
                     'boxes' => $items->sum('boxes'),
                     'rows' => $items->all(),
@@ -199,8 +210,6 @@ class SupplierDocuments
             })
             ->values()
             ->all();
-
-        return ['labels' => $labels, 'di' => $di];
     }
 
     /**

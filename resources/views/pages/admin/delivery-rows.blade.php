@@ -34,9 +34,9 @@
                 <td class="text-theme-xs px-5 py-4 text-gray-500 sm:px-6 dark:text-gray-400">{{ $row->vendor->number }}</td>
                 <td class="px-5 py-4 sm:px-6">
                     @if ($row->origin === 'FR')
-                        <x-ui.badge color="warning" size="sm">{{ __('Forecast') }}</x-ui.badge>
+                        <x-ui.badge color="warning" size="sm">{{ __('Pronóstico') }}</x-ui.badge>
                     @elseif ($row->origin === 'FP')
-                        <x-ui.badge color="info" size="sm">{{ __('Planeada') }}</x-ui.badge>
+                        <x-ui.badge color="info" size="sm">{{ __('Firme') }}</x-ui.badge>
                     @else
                         <x-ui.badge color="primary" size="sm">{{ __('Orden de compra') }}</x-ui.badge>
                     @endif

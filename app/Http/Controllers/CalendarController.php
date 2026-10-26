@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Excel\DeliveryInstruction as DeliveryInstructionSheet;
 use App\Models\DocumentDownload;
 use App\Models\User;
 use App\Models\Vendor;
@@ -23,7 +24,7 @@ class CalendarController extends Controller
     {
         $year = now()->year;
 
-        // From the year of the previous month (January looks back at December) to the next one
+        // This year (the calendar goes back to January) and the next one
         $events = WorkCalendar::query()
             ->where('facility', config('portal.calendar.facility'))
             ->where('work_center', config('portal.calendar.work_center'))
@@ -77,7 +78,7 @@ class CalendarController extends Controller
             'end' => ['required', 'date', 'after:start'],
         ]);
 
-        // Past days of the previous month are shown too (not downloadable)
+        // Past days of this year are shown too (only the last week can be downloaded)
         $from = CarbonImmutable::parse($data['start'])->startOfDay()->max($this->visibleFrom());
         $to = CarbonImmutable::parse($data['end'])->startOfDay()->subDay(); // end is exclusive
 
@@ -128,6 +129,22 @@ class CalendarController extends Controller
         $this->recordDownload($request, $documents, DocumentDownload::DELIVERY_INSTRUCTION, $day);
 
         return $this->pdf($pdf, "{$day->format('Ymd')}_{$vendor->number}_DELIVERY_INSTRUCTION.pdf");
+    }
+
+    // Same delivery instruction as an Excel sheet; it counts as a download of the DI
+    public function downloadDeliveryInstructionExcel(Request $request, string $date): Response
+    {
+        $day = $this->parseDay($date);
+        $documents = $this->documentsFor($request);
+        $parts = $documents->deliveryInstructionDetails($day);
+
+        abort_if($parts === [], 404, __('No hay instrucción de entrega para este día.'));
+
+        $vendor = $documents->vendor();
+        $xlsx = (new DeliveryInstructionSheet)->render($parts, $vendor->number, $vendor->name, $day, config('portal.company_name'));
+        $this->recordDownload($request, $documents, DocumentDownload::DELIVERY_INSTRUCTION, $day);
+
+        return $this->file($xlsx, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', "{$day->format('Ymd')}_{$vendor->number}_DELIVERY_INSTRUCTION.xlsx");
     }
 
     /**
@@ -193,8 +210,13 @@ class CalendarController extends Controller
 
     private function pdf(string $content, string $filename): Response
     {
+        return $this->file($content, 'application/pdf', $filename);
+    }
+
+    private function file(string $content, string $type, string $filename): Response
+    {
         return response($content, 200, [
-            'Content-Type' => 'application/pdf',
+            'Content-Type' => $type,
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
         ]);
     }
@@ -217,7 +239,7 @@ class CalendarController extends Controller
         return $vendors->firstWhere('id', $request->session()->get('vendor_id')) ?? $vendors->first();
     }
 
-    // Downloads: from the Monday of the current week on
+    // Downloads: from one week back on
     private function parseDay(string $date): CarbonImmutable
     {
         $day = $this->parseDate($date);
@@ -245,19 +267,19 @@ class CalendarController extends Controller
     }
 
     /**
-     * Documents can be downloaded from the Monday of the current week on; earlier
-     * days are shown greyed out with what they had, without downloads.
+     * Documents can be downloaded from one week back on (today and the 7 days before);
+     * earlier days are shown greyed out with what they had, without downloads.
      */
     private function availableFrom(): CarbonImmutable
     {
-        return CarbonImmutable::now()->startOfWeek(CarbonImmutable::MONDAY)->startOfDay();
+        return CarbonImmutable::today()->subWeek();
     }
 
     /**
-     * The calendar goes back one month: the whole previous month is visible.
+     * The calendar goes back to January: every month of this year is visible.
      */
     private function visibleFrom(): CarbonImmutable
     {
-        return CarbonImmutable::now()->subMonthNoOverflow()->startOfMonth();
+        return CarbonImmutable::now()->startOfYear();
     }
 }

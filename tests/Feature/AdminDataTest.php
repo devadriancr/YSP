@@ -64,7 +64,7 @@ test('the lists show the synced data and filter it by vendor', function () {
         ->assertSee('Ningún registro coincide con los filtros.');
 
     $this->actingAs($admin)->get('/admin/delivery-rows?origen=FR')
-        ->assertSee('Forecast')->assertSee('PART-40-0010')->assertSee('PART-40-0110'); // printed format
+        ->assertSee('Pronóstico')->assertSee('PART-40-0010')->assertSee('PART-40-0110'); // printed format
 
     $this->actingAs($admin)->get('/admin/delivery-rows?origen=PO')
         ->assertSee('Ningún registro coincide con los filtros.');

@@ -16,7 +16,7 @@ class DeliveryRowController extends Controller
     use FiltersLists;
 
     // Origins that are not a purchase order record (HPO.PID)
-    public const ORIGINS = ['FP' => 'Planeada en firme', 'FR' => 'Forecast de cliente'];
+    public const ORIGINS = ['FP' => 'Firme', 'FR' => 'Pronóstico'];
 
     public function index(Request $request): View
     {

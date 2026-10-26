@@ -32,28 +32,20 @@ export function calendarInit() {
       "bg-error-100! opacity-100! dark:bg-error-500/20! text-error-700! dark:text-error-400!",
     warning:
       "bg-warning-100! opacity-100! dark:bg-warning-500/20! text-warning-700! dark:text-warning-400!",
-    weekend:
-      "bg-gray-100! opacity-100! dark:bg-white/5! text-gray-500! dark:text-gray-400!",
+    // Diagonal lines filling the day (app.css)
+    weekend: "calendar-weekend",
   };
 
+  // Work calendar labels ("No Laboral", "Medio turno"...), drawn next to the day number, by event "type"
+  const DAY_LABEL_CLASSES = {
+    danger: { badge: "bg-error-50 text-error-600 dark:bg-error-500/15 dark:text-error-400", dot: "bg-error-500" },
+    primary: { badge: "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400", dot: "bg-brand-500" },
+    warning: { badge: "bg-warning-50 text-warning-600 dark:bg-warning-500/15 dark:text-warning-400", dot: "bg-warning-500" },
+    success: { badge: "bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400", dot: "bg-success-500" },
+  };
+
+  // Supplier documents (labels and DI)
   const EVENT_COLOR_CLASSES = {
-    success: {
-      bg: "border border-success-100 bg-success-50 dark:border-success-500/20 dark:bg-success-500/15",
-      dot: "bg-success-500",
-    },
-    danger: {
-      bg: "border border-error-100 bg-error-50 dark:border-error-500/20 dark:bg-error-500/15",
-      dot: "bg-error-500",
-    },
-    primary: {
-      bg: "border border-brand-100 bg-brand-50 dark:border-brand-500/20 dark:bg-brand-500/15",
-      dot: "bg-brand-500",
-    },
-    warning: {
-      bg: "border border-warning-100 bg-warning-50 dark:border-warning-500/20 dark:bg-warning-500/15",
-      dot: "bg-warning-500",
-    },
-    // Supplier documents (labels and DI)
     labels: {
       bg: "border border-success-200 bg-success-50 hover:bg-success-100 dark:border-success-500/30 dark:bg-success-500/15 dark:hover:bg-success-500/25",
       dot: "bg-success-500",
@@ -131,17 +123,41 @@ export function calendarInit() {
     return `<span class="ms-1 shrink-0 text-success-600 dark:text-success-400" title="${texts.downloaded}" aria-label="${texts.downloaded}"><svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5" /></svg></span>`;
   }
 
+  const dateKey = (day) =>
+    `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+  const escapeHtml = (text) =>
+    String(text).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+
   // What each day is in the work calendar ("2026-10-12" -> "holiday" | "half_shift" | "rest" | "other");
   // working days are not in it
   const dayKinds = {};
-  function markDays(start, end, kind) {
+  // Days with a label in the work calendar ("2026-10-12" -> { title, type }), shown next to the day number
+  const dayLabels = {};
+  function markDays(start, end, kind, label = null) {
     const day = new Date(`${start}T12:00:00`);
     const last = end ? new Date(`${end}T12:00:00`) : new Date(day.getTime() + 86400000); // end is exclusive
     while (day < last) {
-      const key = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
+      const key = dateKey(day);
       dayKinds[key] = kind;
+      if (label) dayLabels[key] = label;
       day.setDate(day.getDate() + 1);
     }
+  }
+
+  // Top row of a day cell: the work calendar label at the start and the day number at the end
+  function dayTopContent(data) {
+    const label = !data.inPopover && dayLabels[dateKey(data.date)];
+    if (!label) return data.text;
+
+    const colors = DAY_LABEL_CLASSES[label.type] || DAY_LABEL_CLASSES.primary;
+    const title = escapeHtml(label.title);
+    const muted = isPast(data.date) ? "opacity-60" : "";
+    // Phones: no room for the text, a dot in its color (the modal tells what the day is)
+    const tag = isMobile
+      ? `<span class="size-1.5 shrink-0 rounded-full ${colors.dot} ${muted}" title="${title}" aria-label="${title}"></span>`
+      : `<span class="min-w-0 truncate rounded-full px-2 py-0.5 text-[11px] leading-4 font-medium ${colors.badge} ${muted}" title="${title}">${title}</span>`;
+
+    return { html: `${tag}<span class="shrink-0">${escapeHtml(data.text)}</span>` };
   }
 
   // Opens the day modal (calender-area.blade.php listens for this event)
@@ -155,9 +171,9 @@ export function calendarInit() {
   }
 
   // Events come from the server as JSON in data-events:
-  // [{ "start": "2026-09-01", "end": "2026-09-05", "title": "Laboral", "type": "success" }]
-  // By default they render as a label (display: "block"); pass
-  // "display": "background" to shade the whole day instead (e.g. weekends).
+  // [{ "start": "2026-09-01", "end": "2026-09-05", "title": "No Laboral", "type": "danger", "kind": "holiday" }]
+  // Labels (display: "block") are drawn in the top row of the day, next to its number
+  // (dayTopContent); "display": "background" shades the whole day instead (e.g. weekends).
   function parseEvents() {
     let raw = [];
     try {
@@ -166,24 +182,28 @@ export function calendarInit() {
       console.error("Invalid calendar events JSON", e);
     }
 
+    const shaded = [];
     for (const event of raw) {
-      if (event.kind) markDays(event.start, event.end, event.kind);
+      const display = event.display || "block";
+      const type = String(event.type || "primary").toLowerCase();
+      if (display === "background") {
+        if (event.kind) markDays(event.start, event.end, event.kind);
+        shaded.push(event);
+      } else {
+        markDays(event.start, event.end, event.kind || "other", { title: event.title || "", type });
+      }
     }
 
-    return raw.map((event, index) => {
-      const type = String(event.type || "success").toLowerCase();
-      const display = event.display || "block";
+    return shaded.map((event, index) => {
+      const type = String(event.type || "weekend").toLowerCase();
       return {
         id: String(event.id ?? index),
         title: event.title || "",
         start: event.start,
         end: event.end,
         allDay: true,
-        display,
-        className:
-          display === "background"
-            ? BG_EVENT_CLASSES[type] || BG_EVENT_CLASSES.success
-            : "",
+        display: "background",
+        className: BG_EVENT_CLASSES[type] || BG_EVENT_CLASSES.weekend,
         extendedProps: { type },
       };
     });
@@ -235,9 +255,14 @@ export function calendarInit() {
             return "flex custom-scrollbar max-h-60 flex-col gap-1.5 overflow-y-auto";
           return "";
         },
+        dayCellTopContent: dayTopContent,
         dayCellTopInnerClass: (data) => {
-          if (isPast(data.date)) return "text-gray-400! line-through decoration-2 dark:text-gray-600!";
-          return data.isToday ? todayNumberClass : "text-gray-700 dark:text-gray-300";
+          // A day with a label: the label at the start and the number at the end of the row
+          const layout = !data.inPopover && dayLabels[dateKey(data.date)]
+            ? "flex min-w-0 flex-1 items-center justify-between gap-1"
+            : "";
+          if (isPast(data.date)) return `text-gray-400! dark:text-gray-600! ${layout}`;
+          return `${data.isToday ? todayNumberClass : "text-gray-700 dark:text-gray-300"} ${layout}`;
         },
         moreLinkClass:
           "border-0! bg-transparent! p-0! hover:bg-transparent! focus:outline-none",
@@ -261,12 +286,12 @@ export function calendarInit() {
     return Math.max(480, window.innerHeight - cardTop - extras - bottomGap);
   }
 
-  // Documents can be opened from the Monday of the current week on (CalendarController::availableFrom)
+  // Documents can be downloaded from one week back on (CalendarController::availableFrom)
   const availableFrom = calendarEl.dataset.availableFrom || null;
   const availableFromDate = availableFrom ? new Date(`${availableFrom}T00:00:00`) : null;
-  // Days before the current week are past: crossed out, they show what they had but cannot be downloaded
+  // Earlier days are past: greyed out, they show what they had but cannot be downloaded
   const isPast = (date) => Boolean(availableFromDate) && date < availableFromDate;
-  // The calendar goes back one month (CalendarController::visibleFrom)
+  // The calendar goes back to January of this year (CalendarController::visibleFrom)
   const visibleFrom = calendarEl.dataset.visibleFrom || null;
   const visibleFromDate = visibleFrom ? new Date(`${visibleFrom}T00:00:00`) : null;
   const toolbar = calendarEl.closest("[data-calendar-card]")?.querySelector("[data-calendar-toolbar]");
@@ -293,7 +318,7 @@ export function calendarInit() {
       if (titleEl) titleEl.textContent = info.view.title;
       const { currentStart, currentEnd } = info.view;
       const today = new Date();
-      // One month back at most
+      // Back to January at most
       if (navButtons.prev) {
         navButtons.prev.disabled = Boolean(visibleFromDate) && currentStart <= visibleFromDate;
       }
@@ -336,7 +361,7 @@ export function calendarInit() {
       const type = eventInfo.event.extendedProps?.type || "primary";
       // Documents of past days: muted, they can be looked at but not downloaded
       const pastDocument = eventInfo.event.extendedProps?.document && isPast(eventInfo.event.start);
-      const colors = pastDocument ? PAST_DOCUMENT_CLASSES : EVENT_COLOR_CLASSES[type] || EVENT_COLOR_CLASSES.primary;
+      const colors = pastDocument ? PAST_DOCUMENT_CLASSES : EVENT_COLOR_CLASSES[type] || EVENT_COLOR_CLASSES.labels;
 
       // Phones: no room for text, each label becomes a solid bar in its color
       if (isMobile) {
