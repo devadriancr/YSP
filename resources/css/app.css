@@ -1049,14 +1049,6 @@ html.dark #calendar,
   @apply w-6.5 rounded-xl;
 }
 
-#loginCarousel .swiper-pagination-bullet {
-  @apply !mx-1 !my-0 h-2.5 w-2.5 bg-white opacity-60 duration-200 ease-in-out;
-}
-
-#loginCarousel .swiper-pagination-bullet-active {
-  @apply w-6.5 rounded-xl opacity-100;
-}
-
 .form-check-input:checked ~ span {
   @apply border-[6px] border-brand-500 dark:border-brand-500;
 }
