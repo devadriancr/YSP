@@ -41,6 +41,11 @@ class SupplierDocuments
             $date = $line->due_date->toDateString();
             $days[$date] ??= ['labels' => 0, 'di' => 0];
             $days[$date]['labels'] += $this->boxCount($line->quantity, $line->partNumber->standard_pack_quantity);
+
+            // Pieces ordered for the day and how many the plant already received
+            $days[$date]['receipt'] ??= ['ordered' => 0, 'received' => 0];
+            $days[$date]['receipt']['ordered'] += $this->number($line->quantity);
+            $days[$date]['receipt']['received'] += min($this->number($line->received_quantity), $this->number($line->quantity));
         }
 
         $rows = $this->vendor->deliveryRows()
@@ -151,17 +156,49 @@ class SupplierDocuments
      */
     public function details(CarbonImmutable $date): array
     {
-        $labels = $this->labelLines($date, $date)->map(fn (PurchaseOrderLine $line) => [
-            'part' => PartNumber::format($line->partNumber->number, $line->partNumber->project),
-            'description' => $line->partNumber->description,
-            'order' => "{$line->number}-{$line->line}",
-            'shift' => $line->shift,
-            'warehouse' => $line->warehouse,
-            'quantity' => $this->number($line->quantity),
-            'boxes' => $this->boxCount($line->quantity, $line->partNumber->standard_pack_quantity),
-        ])->values()->all();
+        $labels = $this->labelLines($date, $date)->map(function (PurchaseOrderLine $line) {
+            $quantity = $this->number($line->quantity);
+            $received = min($this->number($line->received_quantity), $quantity);
 
-        return ['labels' => $labels, 'di' => $this->deliveryInstructionDetails($date)];
+            return [
+                'part' => PartNumber::format($line->partNumber->number, $line->partNumber->project),
+                'description' => $line->partNumber->description,
+                'order' => "{$line->number}-{$line->line}",
+                'shift' => $line->shift,
+                'warehouse' => $line->warehouse,
+                'quantity' => $quantity,
+                'received' => $received,
+                'pending' => $quantity - $received,
+                'boxes' => $this->boxCount($line->quantity, $line->partNumber->standard_pack_quantity),
+            ];
+        })->values();
+
+        return [
+            'labels' => $labels->all(),
+            'shortages' => $this->shortages($labels),
+            'di' => $this->deliveryInstructionDetails($date),
+        ];
+    }
+
+    /**
+     * Parts still missing on a day, the biggest first: one part may come in several PO lines.
+     *
+     * @return list<array{part: string, description: string|null, quantity: int, received: int, pending: int}>
+     */
+    private function shortages(Collection $labels): array
+    {
+        return $labels->groupBy('part')
+            ->map(fn (Collection $lines, string $part) => [
+                'part' => $part,
+                'description' => $lines->first()['description'],
+                'quantity' => $lines->sum('quantity'),
+                'received' => $lines->sum('received'),
+                'pending' => $lines->sum('pending'),
+            ])
+            ->filter(fn (array $part) => $part['pending'] > 0)
+            ->sortBy([['pending', 'desc'], ['part', 'asc']])
+            ->values()
+            ->all();
     }
 
     /**

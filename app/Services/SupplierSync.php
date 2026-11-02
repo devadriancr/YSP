@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\SyncRun;
 use App\Models\Vendor;
 use App\Models\WorkCalendar;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -14,15 +15,18 @@ use Throwable;
 /**
  * Saves what the sync service sends. A vendor is replaced as a whole inside a
  * transaction: if anything fails, suppliers keep seeing the previous data.
+ * What changed from today on is recorded by DocumentChanges.
  */
 class SupplierSync
 {
+    public function __construct(private DocumentChanges $changes) {}
+
     private const CHUNK_SIZE = 500;
 
     // Every row gets all columns, so a field left out by the sender cannot misalign a bulk insert
     private const PART_DEFAULTS = ['description' => null, 'project' => null, 'standard_pack' => null, 'side' => null, 'next_process' => null];
 
-    private const LINE_DEFAULTS = ['shift' => null, 'warehouse' => null];
+    private const LINE_DEFAULTS = ['received_quantity' => 0, 'shift' => null, 'warehouse' => null];
 
     private const DELIVERY_DEFAULTS = ['number' => null, 'line' => null];
 
@@ -35,6 +39,11 @@ class SupplierSync
 
         return $this->track('vendor', $rows, function (SyncRun $run) use ($number, $data) {
             $now = now();
+            $today = CarbonImmutable::today();
+
+            // The first load of a vendor has nothing to compare with
+            $previous = Vendor::firstWhere('number', $number);
+            $before = $previous?->synced_at ? $this->changes->picture($previous, $today) : null;
 
             $vendor = Vendor::updateOrCreate(
                 ['number' => $number],
@@ -59,6 +68,10 @@ class SupplierSync
 
             $this->insert('purchase_order_lines', $this->withPartIds($lines, $partIds, 'purchase_order_lines', $vendor->id, $now));
             $this->insert('delivery_rows', $this->withPartIds($deliveries, $partIds, 'delivery_rows', $vendor->id, $now));
+
+            if ($before !== null) {
+                $this->changes->record($vendor, $before, $this->changes->picture($vendor, $today), $now->toImmutable());
+            }
         });
     }
 

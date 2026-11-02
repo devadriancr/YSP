@@ -30,6 +30,7 @@ class SyncController extends Controller
         'number' => ['required', 'integer', 'min:0'],
         'line' => ['required', 'integer', 'min:0', 'max:65535'],
         'quantity' => ['required', 'numeric'],
+        'received_quantity' => ['nullable', 'numeric', 'min:0'],
         'due_date' => ['required', 'date_format:Y-m-d'],
         'shift' => ['nullable', 'string', 'max:1'],
         'warehouse' => ['nullable', 'string', 'max:3'],

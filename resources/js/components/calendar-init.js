@@ -19,7 +19,7 @@ export function calendarInit() {
   const isRtl = document.documentElement.dir === "rtl";
   // Page language (es, en or ja) and the texts the server translated for this calendar
   const lang = (document.documentElement.lang || "es").slice(0, 2);
-  const texts = { labels: "Etiquetas", di: "Instrucción de entrega", more: "más", downloaded: "Descargada", changed: "Cambió después de la descarga", ...JSON.parse(calendarEl.dataset.i18n || "{}") };
+  const texts = { labels: "Etiquetas", di: "Instrucción de entrega", more: "más", downloaded: "Descargada", changed: "Cambió después de la descarga", updated: "Infor actualizó este día", receivedOf: ":received de :ordered pzs recibidas (:percent%)", ...JSON.parse(calendarEl.dataset.i18n || "{}") };
   let isMobile = window.innerWidth < 640;
 
   // Background colors for marked days, by event "type"
@@ -75,7 +75,13 @@ export function calendarInit() {
           title: texts.labels,
           start: date,
           allDay: true,
-          extendedProps: { type: "labels", document: true, download: info.downloads?.labels ?? null },
+          extendedProps: {
+            type: "labels",
+            document: true,
+            download: info.downloads?.labels ?? null,
+            change: info.changes?.labels ?? null,
+            receipt: info.receipt ?? null,
+          },
         });
       }
       if (info.di > 0) {
@@ -84,7 +90,7 @@ export function calendarInit() {
           title: texts.di,
           start: date,
           allDay: true,
-          extendedProps: { type: "di", document: true, download: info.downloads?.di ?? null },
+          extendedProps: { type: "di", document: true, download: info.downloads?.di ?? null, change: info.changes?.di ?? null },
         });
       }
     }
@@ -115,6 +121,27 @@ export function calendarInit() {
   }
 
   // After a download: check mark; if Infor changed the data afterwards, a warning instead
+  // One mark per document, the most important first: changed after the download,
+  // changed by Infor lately (not downloaded since), downloaded
+  function statusIcon(download, change) {
+    if (!download?.changed && change?.recent && !(download && download.at >= change.at)) {
+      return `<span class="ms-1 shrink-0 text-brand-500 dark:text-brand-400" title="${texts.updated}" aria-label="${texts.updated}"><svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2M21 4v5h-5M3 20v-5h5" /></svg></span>`;
+    }
+    return downloadIcon(download);
+  }
+
+  // Received pieces of the day's purchase orders: green complete, red short on a past day, amber on the way
+  function receiptBar(receipt, date) {
+    if (!receipt || receipt.ordered <= 0) return "";
+    const percent = Math.min(100, Math.round((receipt.received * 100) / receipt.ordered));
+    const tone = percent >= 100 ? "bg-success-500" : date < dateKey(new Date()) ? "bg-error-500" : "bg-warning-500";
+    const title = texts.receivedOf
+      .replace(":received", receipt.received.toLocaleString(lang))
+      .replace(":ordered", receipt.ordered.toLocaleString(lang))
+      .replace(":percent", percent);
+    return `<div class="mt-1 h-1 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-white/10" title="${title}" role="img" aria-label="${title}"><div class="h-full rounded-full ${tone}" style="width: ${percent}%"></div></div>`;
+  }
+
   function downloadIcon(download) {
     if (!download) return "";
     if (download.changed) {
@@ -363,19 +390,25 @@ export function calendarInit() {
       const pastDocument = eventInfo.event.extendedProps?.document && isPast(eventInfo.event.start);
       const colors = pastDocument ? PAST_DOCUMENT_CLASSES : EVENT_COLOR_CLASSES[type] || EVENT_COLOR_CLASSES.labels;
 
+      const props = eventInfo.event.extendedProps || {};
+      const bar = receiptBar(props.receipt, eventInfo.event.startStr.slice(0, 10));
+
       // Phones: no room for text, each label becomes a solid bar in its color
       if (isMobile) {
         return {
-          html: `<div class="mt-1 h-1.5 w-full rounded-full ${colors.dot}"></div>`,
+          html: `<div class="mt-1 h-1.5 w-full rounded-full ${colors.dot}"></div>${bar}`,
         };
       }
 
       return {
         html: `
-          <div class="flex max-w-full items-center rounded-md py-1 ps-1.5 pe-2 sm:rounded-lg sm:py-1.5 sm:ps-2.5 sm:pe-3 ${colors.bg}">
-            <div class="ms-0 me-1 h-2.5 w-1 shrink-0 rounded-full sm:me-2 sm:h-3.5 ${colors.dot}"></div>
-            <div class="fc-event-title min-w-0 flex-1 truncate p-0 text-[11px] font-medium text-gray-700 sm:text-xs dark:text-white">${eventInfo.event.title || ""}</div>
-            ${downloadIcon(eventInfo.event.extendedProps?.download)}
+          <div class="max-w-full rounded-md py-1 ps-1.5 pe-2 sm:rounded-lg sm:py-1.5 sm:ps-2.5 sm:pe-3 ${colors.bg}">
+            <div class="flex items-center">
+              <div class="ms-0 me-1 h-2.5 w-1 shrink-0 rounded-full sm:me-2 sm:h-3.5 ${colors.dot}"></div>
+              <div class="fc-event-title min-w-0 flex-1 truncate p-0 text-[11px] font-medium text-gray-700 sm:text-xs dark:text-white">${eventInfo.event.title || ""}</div>
+              ${statusIcon(props.download, props.change)}
+            </div>
+            ${bar}
           </div>
         `,
       };

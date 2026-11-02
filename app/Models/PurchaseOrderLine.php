@@ -13,6 +13,7 @@ class PurchaseOrderLine extends Model
         'number',
         'line',
         'quantity',
+        'received_quantity',
         'due_date',
         'shift',
         'warehouse',
@@ -24,6 +25,7 @@ class PurchaseOrderLine extends Model
             'number' => 'integer',
             'line' => 'integer',
             'quantity' => 'decimal:3',
+            'received_quantity' => 'decimal:3',
             'due_date' => 'immutable_date',
         ];
     }

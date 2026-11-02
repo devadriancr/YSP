@@ -119,6 +119,44 @@ export function calendarDocuments({ urls, texts, locale }) {
             return fill(text, { count: this.num(value) });
         },
 
+        // Received pieces (HPO): { ordered, received }
+        receiptPercent(receipt) {
+            if (!receipt?.ordered) return 0;
+            return Math.min(100, Math.round((receipt.received * 100) / receipt.ordered));
+        },
+        receiptPending(receipt) {
+            return Math.max(0, (receipt?.ordered || 0) - (receipt?.received || 0));
+        },
+        receiptText(receipt) {
+            return fill(texts.receivedOf, { received: this.num(receipt?.received), ordered: this.num(receipt?.ordered) });
+        },
+        receiptTone(receipt) {
+            if (this.receiptPending(receipt) === 0) return 'bg-success-500';
+            return this.dayIsOver() ? 'bg-error-500' : 'bg-warning-500';
+        },
+        // Before today: what is missing did not arrive ("faltó"); today and later it is still on the way
+        dayIsOver() {
+            const now = new Date();
+            const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+            return this.day.date < today;
+        },
+
+        // Changes Infor made to the day: { at, recent, parts: [{ part, before, after }] }
+        changeText(change) {
+            const date = new Date(change.at).toLocaleString(dateLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+            return fill(texts.updatedOn, { date });
+        },
+        changePartText(part) {
+            if (part.before === null) return fill(texts.partAdded, { after: this.num(part.after) });
+            if (part.after === null) return fill(texts.partRemoved, { before: this.num(part.before) });
+            return fill(texts.partChanged, { before: this.num(part.before), after: this.num(part.after) });
+        },
+        changeTone(part) {
+            if (part.after === null) return 'text-error-600 dark:text-error-400';
+            if (part.before === null) return 'text-success-600 dark:text-success-400';
+            return 'text-gray-700 dark:text-gray-300';
+        },
+
         isPending(kind) {
             return Boolean(this.pending[`${kind}-${this.day.date}`]);
         },

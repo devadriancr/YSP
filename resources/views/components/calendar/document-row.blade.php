@@ -33,6 +33,10 @@
                 :class="day.downloads.{{ $kind }}.changed ? 'text-warning-600 dark:text-warning-400' : 'text-success-600 dark:text-success-400'"
                 x-text="downloadText(day.downloads.{{ $kind }})"></p>
         </template>
+        @if ($kind === 'labels')
+            <x-calendar.receipt-progress />
+        @endif
+        <x-calendar.change-notice :kind="$kind" />
     </div>
 
     <div x-show="day.{{ $kind }} > 0" class="flex shrink-0 items-center gap-2">

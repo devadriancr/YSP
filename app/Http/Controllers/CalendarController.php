@@ -9,6 +9,7 @@ use App\Models\Vendor;
 use App\Models\WorkCalendar;
 use App\Pdf\DeliveryInstruction;
 use App\Pdf\IdentificationCards;
+use App\Services\DocumentChanges;
 use App\Services\SupplierDocuments;
 use App\Support\InforCalendar;
 use Carbon\CarbonImmutable;
@@ -71,7 +72,7 @@ class CalendarController extends Controller
      * and the last download of each: { "2026-10-05": { "labels": 12, "di": 30,
      * "downloads": { "labels": { "at": "...", "by": "Ana", "changed": false } } }, ... }
      */
-    public function documents(Request $request): JsonResponse
+    public function documents(Request $request, DocumentChanges $changes): JsonResponse
     {
         $data = $request->validate([
             'start' => ['required', 'date'],
@@ -87,8 +88,36 @@ class CalendarController extends Controller
         }
 
         $documents = $this->documentsFor($request);
+        $days = $this->withDownloads($documents, $documents->calendarSummary($from, $to), $from, $to);
 
-        return response()->json($this->withDownloads($documents, $documents->calendarSummary($from, $to), $from, $to));
+        return response()->json($this->withChanges($changes, $documents->vendor(), $days, $from, $to));
+    }
+
+    /**
+     * Adds what Infor changed on each day from today on: the parts and when it was found.
+     * "recent" marks the day in the calendar; older changes are only listed in the day.
+     */
+    private function withChanges(DocumentChanges $changes, Vendor $vendor, array $days, CarbonImmutable $from, CarbonImmutable $to): array
+    {
+        $from = $from->max(CarbonImmutable::today());
+        if ($to->lt($from)) {
+            return $days;
+        }
+
+        $recentSince = now()->subDays(DocumentChanges::RECENT_DAYS);
+        foreach ($changes->latest($vendor, $from, $to) as $date => $documents) {
+            $days[$date] ??= ['labels' => 0, 'di' => 0];
+            foreach ($documents as $document => $change) {
+                $days[$date]['changes'][$document] = [
+                    'at' => $change->detected_at->timezone(config('app.timezone'))->toIso8601String(),
+                    'recent' => $change->detected_at->gte($recentSince),
+                    'parts' => $change->parts,
+                ];
+            }
+        }
+        ksort($days);
+
+        return $days;
     }
 
     /**

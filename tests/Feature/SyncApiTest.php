@@ -161,3 +161,59 @@ test('a wrong row deep in a list points to its position', function () {
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['purchase_order_lines.1.due_date']);
 });
+
+// What changed from today on
+
+test('a sync records what infor changed from today on, but not the days before', function () {
+    $this->travelTo('2026-10-20 09:00');
+    $line = fn (string $date, float $quantity, float $received = 0) => [
+        'part_number' => 'BDTS-28-911A', 'number' => 12345, 'line' => (int) str_replace('-', '', $date) % 100,
+        'quantity' => $quantity, 'received_quantity' => $received, 'due_date' => $date, 'shift' => 'A', 'warehouse' => 'YK1',
+    ];
+
+    // First load: nothing to compare with
+    signedPost('/api/sync/vendors/400191', vendorPayload([$line('2026-10-19', 25), $line('2026-10-21', 25)]))->assertOk();
+    expect(\App\Models\DocumentChange::count())->toBe(0);
+
+    $changed = vendorPayload([
+        $line('2026-10-19', 30),        // yesterday: updated, but not reported
+        $line('2026-10-21', 40, 25),    // more pieces (receiving is not a change)
+        $line('2026-10-23', 5),         // a new day
+    ]);
+    $changed['delivery_rows'] = [];     // the forecast of the 22nd was removed
+    signedPost('/api/sync/vendors/400191', $changed)->assertOk();
+
+    $changes = \App\Models\DocumentChange::orderBy('date')->orderBy('document')->get()
+        ->map(fn ($change) => [$change->document, $change->date->toDateString(), $change->parts])->all();
+
+    // The part as the documents print it
+    $part = \App\Support\PartNumber::format('BDTS-28-911A', 'J59');
+    expect($changes)->toBe([
+        ['labels', '2026-10-21', [['part' => $part, 'before' => 25, 'after' => 40]]],
+        ['di', '2026-10-22', [['part' => $part, 'before' => 40, 'after' => null]]],
+        ['labels', '2026-10-23', [['part' => $part, 'before' => null, 'after' => 5]]],
+    ]);
+    expect(\App\Models\PurchaseOrderLine::whereDate('due_date', '2026-10-19')->value('quantity'))->toBe('30.000');
+});
+
+test('receiving pieces alone is not reported as a change', function () {
+    $this->travelTo('2026-10-20 09:00');
+    $line = ['part_number' => 'BDTS-28-911A', 'number' => 12345, 'line' => 1, 'quantity' => 25, 'due_date' => '2026-10-21'];
+
+    signedPost('/api/sync/vendors/400191', vendorPayload([$line]))->assertOk();
+    signedPost('/api/sync/vendors/400191', vendorPayload([[...$line, 'received_quantity' => 25]]))->assertOk();
+
+    expect(\App\Models\DocumentChange::count())->toBe(0)
+        ->and(\App\Models\PurchaseOrderLine::value('received_quantity'))->toBe('25.000');
+});
+
+test('the received quantity is optional and cannot be negative', function () {
+    $line = ['part_number' => 'BDTS-28-911A', 'number' => 12345, 'line' => 1, 'quantity' => 25, 'due_date' => '2026-10-21'];
+
+    signedPost('/api/sync/vendors/400191', vendorPayload([$line]))->assertOk();
+    expect(\App\Models\PurchaseOrderLine::value('received_quantity'))->toBe('0.000');
+
+    signedPost('/api/sync/vendors/400191', vendorPayload([[...$line, 'received_quantity' => -1]]))
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors(['purchase_order_lines.0.received_quantity']);
+});

@@ -39,6 +39,15 @@
             'pieces' => __(':count pzs'),
             'boxes' => __(':count cajas'),
             'origins' => ['PO' => __('Orden de compra'), 'FP' => __('Firme'), 'FR' => __('Pronóstico')],
+            'receivedOf' => __(':received de :ordered pzs recibidas'),
+            'missing' => __('faltan :count pzs'),
+            'missed' => __('faltaron :count pzs'),
+            'missingShort' => __(':count pzs'),
+            'complete' => __('completo'),
+            'updatedOn' => __('Infor actualizó este día el :date'),
+            'partChanged' => __(':before → :after pzs'),
+            'partAdded' => __('nuevo: :after pzs'),
+            'partRemoved' => __('ya no está (eran :before pzs)'),
             'workdays' => ['holiday' => __('Día no laborable'), 'half_shift' => __('Medio turno'), 'rest' => __('Día de descanso'), 'other' => __('Día especial')],
         ],
     ];
@@ -60,7 +69,7 @@
     <div class="custom-calendar relative">
         <div id="calendar" data-events='@json($events)' data-documents-url="{{ route('calendar.documents') }}"
             data-available-from="{{ $availableFrom }}" data-visible-from="{{ $visibleFrom }}"
-            data-i18n="{{ json_encode(['labels' => __('Etiquetas'), 'di' => __('Instrucción de entrega'), 'more' => __('más'), 'downloaded' => __('Descargada'), 'changed' => __('Cambió después de la descarga')]) }}"></div>
+            data-i18n="{{ json_encode(['labels' => __('Etiquetas'), 'di' => __('Instrucción de entrega'), 'more' => __('más'), 'downloaded' => __('Descargada'), 'changed' => __('Cambió después de la descarga'), 'updated' => __('Infor actualizó este día'), 'receivedOf' => __(':received de :ordered pzs recibidas (:percent%)')]) }}"></div>
     </div>
 
     <x-calendar.day-modal />

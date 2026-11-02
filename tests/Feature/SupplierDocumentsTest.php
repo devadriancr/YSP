@@ -56,7 +56,7 @@ test('the calendar only shows the documents of the vendor of the user', function
     $this->actingAs(supplierOf($mine))
         ->getJson('/calendar/documents?start=2026-10-01&end=2026-11-01')
         ->assertOk()
-        ->assertExactJson(['2026-10-20' => ['labels' => 3, 'di' => 1]]);
+        ->assertExactJson(['2026-10-20' => ['labels' => 3, 'di' => 1, 'receipt' => ['ordered' => 25, 'received' => 0]]]);
 });
 
 test('a user with several vendors switches between them', function () {
@@ -67,7 +67,7 @@ test('a user with several vendors switches between them', function () {
     // The first vendor by number is shown by default
     $this->actingAs($user)
         ->getJson('/calendar/documents?start=2026-10-01&end=2026-11-01')
-        ->assertExactJson(['2026-10-21' => ['labels' => 3, 'di' => 1]]);
+        ->assertExactJson(['2026-10-21' => ['labels' => 3, 'di' => 1, 'receipt' => ['ordered' => 25, 'received' => 0]]]);
 
     $this->actingAs($user)
         ->post('/calendar/vendor', ['vendor' => 400191])
@@ -75,7 +75,7 @@ test('a user with several vendors switches between them', function () {
 
     $this->actingAs($user)
         ->getJson('/calendar/documents?start=2026-10-01&end=2026-11-01')
-        ->assertExactJson(['2026-10-20' => ['labels' => 3, 'di' => 1]]);
+        ->assertExactJson(['2026-10-20' => ['labels' => 3, 'di' => 1, 'receipt' => ['ordered' => 25, 'received' => 0]]]);
 
     $this->actingAs($user)
         ->get('/calendar')
@@ -94,7 +94,7 @@ test('a user cannot choose a vendor that is not assigned to them', function () {
 
     $this->actingAs($user)
         ->getJson('/calendar/documents?start=2026-10-01&end=2026-11-01')
-        ->assertExactJson(['2026-10-20' => ['labels' => 3, 'di' => 1]]);
+        ->assertExactJson(['2026-10-20' => ['labels' => 3, 'di' => 1, 'receipt' => ['ordered' => 25, 'received' => 0]]]);
 });
 
 test('a user without vendor cannot see documents', function () {
@@ -151,7 +151,7 @@ test('past days show what they had but cannot be downloaded', function () {
 
     $this->actingAs($user)
         ->getJson('/calendar/documents?start=2026-09-28&end=2026-11-09')
-        ->assertExactJson(['2026-10-07' => ['labels' => 3, 'di' => 1]]);
+        ->assertExactJson(['2026-10-07' => ['labels' => 3, 'di' => 1, 'receipt' => ['ordered' => 25, 'received' => 0]]]);
 
     $this->actingAs($user)
         ->get('/calendar/2026-10-07/identification-cards')
@@ -173,7 +173,7 @@ test('the calendar goes back to january of this year', function () {
 
     $this->actingAs(supplierOf($vendor))
         ->getJson('/calendar/documents?start=2025-12-29&end=2026-02-09')
-        ->assertExactJson(['2026-01-05' => ['labels' => 3, 'di' => 0]]);
+        ->assertExactJson(['2026-01-05' => ['labels' => 3, 'di' => 0, 'receipt' => ['ordered' => 25, 'received' => 0]]]);
 
     $this->actingAs(supplierOf($vendor))
         ->get('/calendar')
@@ -337,7 +337,10 @@ test('the details of a day list the labels and the delivery instruction without 
         ->assertExactJson([
             'labels' => [[
                 'part' => 'BDTS-28-911A', 'description' => 'BRACKET', 'order' => '12345-1',
-                'shift' => 'A', 'warehouse' => 'YK1', 'quantity' => 25, 'boxes' => 3,
+                'shift' => 'A', 'warehouse' => 'YK1', 'quantity' => 25, 'received' => 0, 'pending' => 25, 'boxes' => 3,
+            ]],
+            'shortages' => [[
+                'part' => 'BDTS-28-911A', 'description' => 'BRACKET', 'quantity' => 25, 'received' => 0, 'pending' => 25,
             ]],
             'di' => [[
                 'part' => 'BDTS-28-911A', 'description' => 'BRACKET', 'snp' => 10, 'quantity' => 55, 'boxes' => 6,
@@ -368,7 +371,7 @@ test('the details only show the vendor of the user', function () {
 
     $this->actingAs(supplierOf(vendorWithLine(400191, '2026-10-21')))
         ->getJson('/calendar/2026-10-20/details')
-        ->assertExactJson(['labels' => [], 'di' => [[
+        ->assertExactJson(['labels' => [], 'shortages' => [], 'di' => [[
             'part' => 'BDTS-28-911A', 'description' => 'BRACKET', 'snp' => 10, 'quantity' => 40, 'boxes' => 4,
             'rows' => [['date' => '2026-10-21', 'origin' => 'FR', 'order' => null, 'quantity' => 40, 'boxes' => 4]],
         ]]]);
@@ -387,4 +390,45 @@ test('the calendar page tells the kind of each special day', function () {
         ->assertOk()
         ->assertSee('"kind":"holiday"', false)
         ->assertSee('"kind":"half_shift"', false);
+});
+
+// Received pieces and changes from Infor
+
+test('the calendar shows how much of each day was received and which parts are short', function () {
+    $vendor = vendorWithLine(400191, '2026-10-20');
+    $vendor->purchaseOrderLines()->update(['received_quantity' => 10]);
+    $user = supplierOf($vendor);
+
+    $this->actingAs($user)->getJson('/calendar/documents?start=2026-10-01&end=2026-11-01')
+        ->assertJsonPath('2026-10-20.receipt', ['ordered' => 25, 'received' => 10]);
+
+    $this->getJson('/calendar/2026-10-20/details')
+        ->assertJsonPath('labels.0.received', 10)
+        ->assertJsonPath('labels.0.pending', 15)
+        ->assertJsonPath('shortages', [[
+            'part' => 'BDTS-28-911A', 'description' => 'BRACKET', 'quantity' => 25, 'received' => 10, 'pending' => 15,
+        ]]);
+
+    // Received complete (or more): nothing is short
+    $vendor->purchaseOrderLines()->update(['received_quantity' => 30]);
+    $this->getJson('/calendar/2026-10-20/details')->assertJsonPath('shortages', []);
+    $this->getJson('/calendar/documents?start=2026-10-01&end=2026-11-01')
+        ->assertJsonPath('2026-10-20.receipt', ['ordered' => 25, 'received' => 25]);
+});
+
+test('the calendar shows what infor changed from today on', function () {
+    $vendor = vendorWithLine(400191, '2026-10-20');
+    $parts = [['part' => 'BDTS28911A', 'before' => 20, 'after' => 25]];
+    foreach (['2026-10-14' => '2026-10-14 08:00', '2026-10-20' => '2026-10-15 08:00', '2026-10-21' => '2026-10-01 08:00'] as $date => $at) {
+        $vendor->documentChanges()->create(['document' => 'labels', 'date' => $date, 'parts' => $parts, 'detected_at' => $at]);
+    }
+
+    $days = $this->actingAs(supplierOf($vendor))
+        ->getJson('/calendar/documents?start=2026-10-01&end=2026-11-01')
+        ->json();
+
+    expect($days)->not->toHaveKey('2026-10-14')                          // before today: not reported
+        ->and($days['2026-10-20']['changes']['labels']['parts'])->toBe($parts)
+        ->and($days['2026-10-20']['changes']['labels']['recent'])->toBeTrue()
+        ->and($days['2026-10-21']['changes']['labels']['recent'])->toBeFalse(); // listed, but too old to mark the day
 });
