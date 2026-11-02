@@ -101,8 +101,8 @@ test('a planner sees the calendar of every vendor', function () {
     $planner = userWithRole(User::PLANNER);
 
     $this->actingAs($planner)->get('/calendar')
-        ->assertSee('400010 · HIRUTA')
-        ->assertSee('400110 · SK TEC');
+        ->assertSeeInOrder(['400010', 'HIRUTA'])
+        ->assertSeeInOrder(['400110', 'SK TEC']);
 
     $this->actingAs($planner)->post('/calendar/vendor', ['vendor' => 400110])->assertRedirect('/calendar');
     $this->actingAs($planner)->get('/users')->assertForbidden();

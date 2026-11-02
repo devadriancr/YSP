@@ -166,7 +166,8 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // No public sign up: only an admin creates users (Usuarios screen)
+        // Features::registration(),
         Features::resetPasswords(),
         // Features::emailVerification(),
         Features::updateProfileInformation(),

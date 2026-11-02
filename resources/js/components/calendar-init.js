@@ -192,6 +192,8 @@ export function calendarInit() {
     const date = dateStr.slice(0, 10);
     if (visibleFrom && date < visibleFrom) return;
     const info = documentsByDay[date] || { labels: 0, di: 0 };
+    // Nothing to show or download that day: no modal
+    if (!(info.labels > 0 || info.di > 0)) return;
     const past = Boolean(availableFrom) && date < availableFrom;
     const workday = dayKinds[date] || null;
     window.dispatchEvent(new CustomEvent("calendar-day", { detail: { date, past, workday, ...info } }));
@@ -238,6 +240,7 @@ export function calendarInit() {
 
   // Month title: "octubre 2026" (instead of "octubre de 2026"), "October 2026", "2026年10月"
   const monthNameFormatter = new Intl.DateTimeFormat(lang, { month: "long" });
+  const dayLabelFormatter = new Intl.DateTimeFormat(lang, { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const monthYearFormatter = new Intl.DateTimeFormat(lang, { year: "numeric", month: "long" });
   const formatMonthYear = ({ date }) => {
     const first = new Date(date.year, date.month, 1);
@@ -271,11 +274,12 @@ export function calendarInit() {
             : "px-1! py-2! sm:px-3! sm:py-3! md:px-5! md:py-4! text-xs! sm:text-sm! font-medium! text-gray-400 uppercase",
         dayCellClass: (data) => {
           if (data.inPopover) return "bg-transparent! p-3!";
+          // calendar-day: gets the loading skeleton (app.css) and the keyboard focus ring
           if (isPast(data.date)) {
             const viewable = !visibleFromDate || data.date >= visibleFromDate;
-            return `calendar-day-past p-1! sm:p-2! ${viewable ? "cursor-pointer" : ""}`;
+            return `calendar-day-past p-1! sm:p-2! ${viewable ? "calendar-day cursor-pointer focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-500" : ""}`;
           }
-          return `cursor-pointer bg-transparent! p-1! sm:p-2! ${data.isToday ? todayCellClass : ""}`;
+          return `calendar-day cursor-pointer bg-transparent! p-1! sm:p-2! focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-brand-500 ${data.isToday ? todayCellClass : ""}`;
         },
         dayCellInnerClass: (data) => {
           if (data.inPopover)
@@ -363,7 +367,7 @@ export function calendarInit() {
     tableClass: "bg-transparent!",
     eventClass: "focus:shadow-none cursor-pointer",
     rowEventClass:
-      "bg-transparent! border-0! px-1! py-0.5! shadow-none! hover:shadow-none! focus:outline-none",
+      "bg-transparent! border-0! px-1! py-px! shadow-none! hover:shadow-none! focus:outline-none",
     rowEventInnerClass: "w-full p-0! border-0! bg-transparent!",
     backgroundEventTitleClass:
       "hidden! sm:block! text-[10px]! sm:text-xs! font-medium! not-italic! opacity-100!",
@@ -377,6 +381,22 @@ export function calendarInit() {
     },
 
     eventSources: [{ events: parseEvents() }, { events: fetchDocuments }],
+    // Skeleton in the days while the documents load; screen readers are told the calendar is busy
+    loading(isLoading) {
+      calendarEl.toggleAttribute("data-loading", isLoading);
+      calendarEl.setAttribute("aria-busy", String(isLoading));
+    },
+    // Keyboard: every viewable day can be focused with Tab and opened with Enter or Space
+    dayCellDidMount(info) {
+      if (info.inPopover || (visibleFromDate && info.date < visibleFromDate)) return;
+      info.el.tabIndex = 0;
+      info.el.setAttribute("aria-label", dayLabelFormatter.format(info.date));
+      info.el.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        openDay(dateKey(info.date));
+      });
+    },
     dateClick(info) {
       openDay(info.dateStr);
     },
@@ -402,10 +422,10 @@ export function calendarInit() {
 
       return {
         html: `
-          <div class="max-w-full rounded-md py-1 ps-1.5 pe-2 sm:rounded-lg sm:py-1.5 sm:ps-2.5 sm:pe-3 ${colors.bg}">
+          <div class="w-full rounded-md py-0.5 ps-1.5 pe-2 sm:py-1 sm:ps-2.5 sm:pe-3 ${colors.bg}">
             <div class="flex items-center">
               <div class="ms-0 me-1 h-2.5 w-1 shrink-0 rounded-full sm:me-2 sm:h-3.5 ${colors.dot}"></div>
-              <div class="fc-event-title min-w-0 flex-1 truncate p-0 text-[11px] font-medium text-gray-700 sm:text-xs dark:text-white">${eventInfo.event.title || ""}</div>
+              <div class="fc-event-title min-w-0 flex-1 truncate p-0 text-[11px] font-medium text-gray-700 sm:text-xs xl:text-sm dark:text-white">${eventInfo.event.title || ""}</div>
               ${statusIcon(props.download, props.change)}
             </div>
             ${bar}

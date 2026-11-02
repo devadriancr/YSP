@@ -22,11 +22,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/calendar/documents', [CalendarController::class, 'documents'])->name('calendar.documents');
     Route::post('/calendar/vendor', [CalendarController::class, 'selectVendor'])->name('calendar.vendor');
     Route::get('/calendar/{date}/identification-cards', [CalendarController::class, 'downloadLabels'])
-        ->name('calendar.labels');
+        ->name('calendar.labels')->middleware('throttle:30,1');
     Route::get('/calendar/{date}/delivery-instruction', [CalendarController::class, 'downloadDeliveryInstruction'])
-        ->name('calendar.delivery-instruction');
+        ->name('calendar.delivery-instruction')->middleware('throttle:30,1');
     Route::get('/calendar/{date}/delivery-instruction/excel', [CalendarController::class, 'downloadDeliveryInstructionExcel'])
-        ->name('calendar.delivery-instruction.excel');
+        ->name('calendar.delivery-instruction.excel')->middleware('throttle:30,1');
     Route::get('/calendar/{date}/details', [CalendarController::class, 'details'])->name('calendar.details');
 
     // users (admins only)

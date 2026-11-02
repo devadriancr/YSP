@@ -611,6 +611,36 @@ span.flatpickr-weekday,
 .dark #calendar .calendar-day-past {
   background-color: rgb(255 255 255 / 0.02) !important;
 }
+/* Calendar skeleton: while the month's documents load, each viewable day shows two grey bars
+   where the labels and the delivery instruction will appear. Drawn as the cell's background:
+   positioning anything inside the cell breaks FullCalendar's event layout. */
+@property --calendar-skeleton {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: transparent;
+}
+#calendar[data-loading] .calendar-day {
+  --calendar-skeleton: var(--color-gray-100);
+  background-image:
+    linear-gradient(var(--calendar-skeleton), var(--calendar-skeleton)),
+    linear-gradient(var(--calendar-skeleton), var(--calendar-skeleton)) !important;
+  background-size: calc(100% - 1rem) 1.1rem, calc(100% - 1rem) 1.1rem;
+  background-position: 0.5rem 2.4rem, 0.5rem 3.9rem;
+  background-repeat: no-repeat;
+  animation: calendar-skeleton 1.4s ease-in-out infinite;
+}
+.dark #calendar[data-loading] .calendar-day {
+  --calendar-skeleton: rgb(255 255 255 / 0.06);
+}
+@keyframes calendar-skeleton {
+  50% { --calendar-skeleton: var(--color-gray-50); }
+}
+.dark #calendar[data-loading] .calendar-day {
+  animation-name: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  #calendar[data-loading] .calendar-day { animation: none; }
+}
 /* Calendar: weekends (rest days of the work calendar) filled with diagonal lines */
 #calendar .calendar-weekend {
   opacity: 1 !important;

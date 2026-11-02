@@ -18,8 +18,8 @@
     $tile = $tones[$tone] ?? $tones['success'];
 @endphp
 
-<li class="flex items-center gap-4 px-5 py-4 sm:px-6">
-    <span class="flex size-10 shrink-0 items-center justify-center rounded-xl"
+<li class="flex items-center gap-4 px-5 py-6 sm:px-7">
+    <span class="flex size-12 shrink-0 items-center justify-center rounded-xl"
         :class="day.{{ $kind }} > 0 ? '{{ $tile }}' : 'bg-gray-100 text-gray-400 dark:bg-white/5 dark:text-gray-500'">
         {{ $icon }}
     </span>

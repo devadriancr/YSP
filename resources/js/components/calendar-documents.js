@@ -34,6 +34,9 @@ export function calendarDocuments({ urls, texts, locale }) {
         loadingDetails: false,
         detailsError: false,
         search: '',
+        // Labels details: one search for the shortages and one for all the lines
+        shortSearch: '',
+        lineSearch: '',
         // Downloads being prepared, by "kind-date"; a second click on the same one is ignored
         pending: {},
         toasts: [],
@@ -64,6 +67,8 @@ export function calendarDocuments({ urls, texts, locale }) {
         async showDetails(kind) {
             this.view = kind;
             this.search = '';
+            this.shortSearch = '';
+            this.lineSearch = '';
             const date = this.day.date;
             if (this.detailsDate === date && this.details) return;
 
@@ -105,6 +110,17 @@ export function calendarDocuments({ urls, texts, locale }) {
                 ));
                 return rows.length ? [{ ...part, rows }] : [];
             });
+        },
+        get filteredShortages() {
+            return this.rowsMatching(this.details?.shortages, this.shortSearch, ['part', 'description', 'pending', 'received', 'quantity']);
+        },
+        get filteredLines() {
+            return this.rowsMatching(this.details?.labels, this.lineSearch, ['part', 'description', 'order', 'shift', 'warehouse', 'quantity', 'pending']);
+        },
+        rowsMatching(rows, search, keys) {
+            const query = search.trim().toLowerCase();
+            if (!query) return rows || [];
+            return (rows || []).filter((row) => keys.some((key) => String(row[key] ?? '').toLowerCase().includes(query)));
         },
         num(value) {
             return Number(value || 0).toLocaleString(dateLocale);

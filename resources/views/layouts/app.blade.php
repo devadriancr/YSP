@@ -155,7 +155,8 @@
             <!-- app header start -->
             @include('layouts.app-header')
             <!-- app header end -->
-            <div class="p-4 mx-auto max-w-(--breakpoint-2xl) md:p-6">
+            {{-- A page can drop the max width with @section('content-class', '...') (the calendar uses the whole screen) --}}
+            <div class="@yield('content-class', 'p-4 mx-auto max-w-(--breakpoint-2xl) md:p-6')">
                 @yield('content')
             </div>
         </div>

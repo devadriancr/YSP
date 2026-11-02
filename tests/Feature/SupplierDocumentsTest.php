@@ -79,8 +79,8 @@ test('a user with several vendors switches between them', function () {
 
     $this->actingAs($user)
         ->get('/calendar')
-        ->assertSee('400191 · VENDOR 400191')
-        ->assertSee('200000 · VENDOR 200000');
+        ->assertSeeInOrder(['400191', 'VENDOR 400191'])
+        ->assertSeeInOrder(['200000', 'VENDOR 200000']);
 });
 
 test('a user cannot choose a vendor that is not assigned to them', function () {

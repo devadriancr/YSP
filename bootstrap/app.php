@@ -13,9 +13,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        $middleware->trustProxies(at: '*');
+        // Only a proxy on this same server (e.g. IIS ARR) may set X-Forwarded-*; trusting any (*)
+        // would let a client fake its IP and skip the login limit and SYNC_ALLOWED_IPS
+        $middleware->trustProxies(at: ['127.0.0.1', '::1']);
         $middleware->web(append: [
             \App\Http\Middleware\SetLocale::class,
+            \App\Http\Middleware\SecurityHeaders::class,
         ]);
         $middleware->redirectGuestsTo('/signin');
         $middleware->alias([

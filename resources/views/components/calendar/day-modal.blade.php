@@ -12,10 +12,10 @@
             x-transition:leave="transition ease-in duration-150"
             x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
             class="relative flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-2xl border border-gray-200 bg-white shadow-theme-lg sm:max-h-[calc(100dvh-3rem)] dark:border-gray-800 dark:bg-gray-900"
-            :class="view ? 'max-w-3xl' : 'max-w-md'">
+            :class="view === 'labels' ? 'max-w-7xl' : (view ? 'max-w-3xl' : 'max-w-xl')">
 
             {{-- Header: the day, its kind in the work calendar and close --}}
-            <div class="flex items-start gap-3 px-5 pt-5 pb-4 sm:px-6">
+            <div class="flex items-start gap-3 px-5 pt-6 pb-5 sm:px-7">
                 <x-ui.icon-button x-show="view" x-cloak :label="__('Volver')" variant="ghost" x-on:click="hideDetails()" class="-ms-2">
                     <x-svg.chevron-left />
                 </x-ui.icon-button>
@@ -60,9 +60,21 @@
 
             {{-- Details: what the document contains, to look at (no QR or barcodes) --}}
             <div x-show="view" x-cloak class="custom-scrollbar min-h-0 flex-1 overflow-auto border-t border-gray-100 px-5 py-5 sm:px-6 dark:border-gray-800">
-                <p x-show="loadingDetails" class="flex items-center gap-2 py-8 text-sm text-gray-500 dark:text-gray-400">
-                    <x-svg.spinner /> {{ __('Cargando…') }}
-                </p>
+                {{-- Skeleton of the tables while the details load --}}
+                <div x-show="loadingDetails" role="status" class="space-y-3">
+                    <span class="sr-only">{{ __('Cargando…') }}</span>
+                    <div class="h-10 w-full rounded-lg bg-gray-100 motion-safe:animate-pulse dark:bg-white/5"></div>
+                    <div class="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800">
+                        <div class="h-10 bg-gray-50 dark:bg-white/3"></div>
+                        @foreach (range(1, 5) as $row)
+                            <div class="flex items-center gap-4 border-t border-gray-100 px-3 py-3 dark:border-gray-800">
+                                <div class="h-4 w-1/4 rounded bg-gray-100 motion-safe:animate-pulse dark:bg-white/5"></div>
+                                <div class="h-4 w-1/5 rounded bg-gray-100 motion-safe:animate-pulse dark:bg-white/5"></div>
+                                <div class="ms-auto h-4 w-16 rounded bg-gray-100 motion-safe:animate-pulse dark:bg-white/5"></div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
                 <p x-show="detailsError" class="rounded-lg bg-error-50 px-3 py-2 text-sm text-error-600 dark:bg-error-500/15 dark:text-error-400">
                     {{ __('No se pudo cargar el detalle. Inténtalo de nuevo.') }}
                 </p>

@@ -77,7 +77,6 @@ class MenuHelper
                 'name' => 'Autenticación',
                 'subItems' => [
                     ['name' => 'Iniciar sesión', 'path' => '/signin', 'pro' => false],
-                    ['name' => 'Registrarse', 'path' => '/signup', 'pro' => false],
                 ],
             ],
         ];

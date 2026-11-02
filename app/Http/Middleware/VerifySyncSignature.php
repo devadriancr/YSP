@@ -5,6 +5,7 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\IpUtils;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -29,22 +30,31 @@ class VerifySyncSignature
         abort_if(strlen($key) < self::MIN_KEY_LENGTH, Response::HTTP_SERVICE_UNAVAILABLE, 'Sync is not configured.');
 
         $allowedIps = config('portal.sync.allowed_ips');
-        abort_if($allowedIps && ! IpUtils::checkIp((string) $request->ip(), $allowedIps), Response::HTTP_FORBIDDEN);
+        $this->rejectIf($allowedIps && ! IpUtils::checkIp((string) $request->ip(), $allowedIps), Response::HTTP_FORBIDDEN, 'IP not allowed.', $request);
 
         $timestamp = (string) $request->header('X-Sync-Timestamp');
         $signature = (string) $request->header('X-Sync-Signature');
 
-        abort_unless(ctype_digit($timestamp) && $signature !== '', Response::HTTP_UNAUTHORIZED, 'Missing signature.');
-        abort_if(abs(time() - (int) $timestamp) > config('portal.sync.tolerance'), Response::HTTP_UNAUTHORIZED, 'Expired signature.');
+        $this->rejectIf(! (ctype_digit($timestamp) && $signature !== ''), Response::HTTP_UNAUTHORIZED, 'Missing signature.', $request);
+        $this->rejectIf(abs(time() - (int) $timestamp) > config('portal.sync.tolerance'), Response::HTTP_UNAUTHORIZED, 'Expired signature.', $request);
 
         $expected = hash_hmac('sha256', $timestamp.'.'.$request->getContent(), $key);
 
-        abort_unless(hash_equals($expected, strtolower($signature)), Response::HTTP_UNAUTHORIZED, 'Invalid signature.');
+        $this->rejectIf(! hash_equals($expected, strtolower($signature)), Response::HTTP_UNAUTHORIZED, 'Invalid signature.', $request);
 
         // Each signature works once, so a captured request cannot be sent again
         $ttl = config('portal.sync.tolerance') * 2;
-        abort_unless(Cache::add('sync-signature:'.$expected, true, $ttl), Response::HTTP_UNAUTHORIZED, 'Signature already used.');
+        $this->rejectIf(! Cache::add('sync-signature:'.$expected, true, $ttl), Response::HTTP_UNAUTHORIZED, 'Signature already used.', $request);
 
         return $next($request);
+    }
+
+    // Refuses the request and leaves a trace of who tried and why
+    private function rejectIf(bool $refuse, int $status, string $reason, Request $request): void
+    {
+        if ($refuse) {
+            Log::warning('Sync request rejected', ['reason' => $reason, 'ip' => $request->ip(), 'path' => $request->path()]);
+            abort($status, $reason);
+        }
     }
 }
