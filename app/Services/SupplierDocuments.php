@@ -5,7 +5,10 @@ namespace App\Services;
 use App\Models\DeliveryRow;
 use App\Models\PartNumber as PartNumberModel;
 use App\Models\PurchaseOrderLine;
+use App\Models\UnreceivedLine;
 use App\Models\Vendor;
+use App\Models\WorkCalendar;
+use App\Support\InforCalendar;
 use App\Support\PartNumber;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Collection;
@@ -199,6 +202,57 @@ class SupplierDocuments
             ->sortBy([['pending', 'desc'], ['part', 'asc']])
             ->values()
             ->all();
+    }
+
+    /**
+     * Overdue PO lines not fully received, the most late first, split like the Infor
+     * reports: parts (YPU705B) and raw material (YPU715B). Days late are working days.
+     *
+     * @return array{parts: list<array>, materials: list<array>}
+     */
+    public function unreceived(CarbonImmutable $today): array
+    {
+        $lines = $this->vendor->unreceivedLines()
+            ->with('partNumber')
+            ->whereDate('due_date', '<', $today->toDateString())
+            ->whereDate('due_date', '>=', UnreceivedLine::since()->toDateString())
+            ->get()
+            ->filter(fn (UnreceivedLine $line) => (float) $line->received_quantity < (float) $line->quantity);
+
+        if ($lines->isEmpty()) {
+            return ['parts' => [], 'materials' => []];
+        }
+
+        $years = WorkCalendar::query()
+            ->where('facility', config('portal.calendar.facility'))
+            ->where('work_center', config('portal.calendar.work_center'))
+            ->pluck('days', 'year')
+            ->all();
+        $worked = InforCalendar::workingDayCount($lines->min('due_date'), $today, $years);
+
+        $rows = $lines->map(fn (UnreceivedLine $line) => [
+            'raw_material' => $line->isRawMaterial(),
+            // As Infor keeps it and prints it on YPU705B/715B (DGJ428B18A), without the label format
+            'part' => $line->partNumber->number,
+            'description' => $line->partNumber->description,
+            'order' => "{$line->number}-{$line->line}",
+            // Order No. of the Infor reports: 8 digits of order and 4 of line
+            'order_no' => $this->pad($line->number, 8).$this->pad($line->line, 4),
+            'due_date' => $line->due_date->toDateString(),
+            'quantity' => (float) $line->quantity,
+            'pending' => (float) $line->quantity - (float) $line->received_quantity,
+            'days_late' => $worked[$today->toDateString()] - $worked[$line->due_date->toDateString()],
+            'unit' => $line->unit(),
+            'material' => $line->material,
+            'symbol' => $line->symbol,
+            'thickness' => $line->thickness,
+            'width' => $line->width,
+            'length' => $line->length,
+        ])->sortBy([['days_late', 'desc'], ['part', 'asc'], ['order', 'asc']]);
+
+        [$materials, $parts] = $rows->partition(fn (array $row) => $row['raw_material']);
+
+        return ['parts' => $parts->values()->all(), 'materials' => $materials->values()->all()];
     }
 
     /**

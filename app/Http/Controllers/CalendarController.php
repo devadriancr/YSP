@@ -64,7 +64,8 @@ class CalendarController extends Controller
 
         $request->session()->put('vendor_id', $vendor->id);
 
-        return redirect()->route('calendar');
+        // Back to the page that has the picker; only known pages, never a URL from the request
+        return redirect()->route($request->input('back') === 'unreceived' ? 'unreceived' : 'calendar');
     }
 
     /**
@@ -258,14 +259,6 @@ class CalendarController extends Controller
         abort_if($vendor === null, 403, __('Tu usuario no tiene un proveedor asignado.'));
 
         return new SupplierDocuments($vendor);
-    }
-
-    // The vendor chosen in the calendar, always one the user can see (the first one by default)
-    private function currentVendor(Request $request): ?Vendor
-    {
-        $vendors = $request->user()->visibleVendors();
-
-        return $vendors->firstWhere('id', $request->session()->get('vendor_id')) ?? $vendors->first();
     }
 
     // Downloads: from one week back on

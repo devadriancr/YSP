@@ -44,6 +44,42 @@ function vendorPayload(array $lines = []): array
     ];
 }
 
+test('a vendor sync saves the unreceived lines, with the sizes infor leaves empty as zero', function () {
+    $payload = vendorPayload() + ['unreceived_lines' => [
+        ['part_number' => 'BDTS-28-911A', 'number' => 777, 'line' => 3, 'item_class' => 'T1', 'quantity' => 1500.5,
+            'received_quantity' => 500, 'due_date' => '2026-10-01', 'material' => 'SPCC', 'symbol' => null,
+            'thickness' => 1.6, 'width' => null, 'length' => null],
+    ]];
+
+    signedPost('/api/sync/vendors/400191', $payload)->assertOk()->assertJson(['rows' => 5]);
+
+    $line = Vendor::firstWhere('number', 400191)->unreceivedLines()->sole();
+    expect($line->item_class)->toBe('T1')
+        ->and($line->unit())->toBe('KG')
+        ->and($line->thickness)->toBe(1.6)
+        ->and($line->width)->toBe(0.0);
+
+    // The next sync replaces them, and an older relay without the list leaves none
+    signedPost('/api/sync/vendors/400191', vendorPayload())->assertOk();
+    expect(Vendor::firstWhere('number', 400191)->unreceivedLines()->count())->toBe(0);
+});
+
+test('forecasts in the weeks covered by firm planned orders are left out, like infor prints them', function () {
+    $row = fn ($origin, $date, $qty) => ['part_number' => 'BDTS-28-911A', 'origin' => $origin, 'number' => null, 'line' => null, 'quantity' => $qty, 'due_date' => $date];
+    $payload = vendorPayload();
+    // Vendor 410010 on 2026-11-10: FP up to 12-04, so the FR of 11-30 is not printed and 12-07 is
+    $payload['delivery_rows'] = [
+        $row('FR', '2026-11-16', 315), $row('FP', '2026-11-30', 800), $row('FR', '2026-11-30', 562),
+        $row('FP', '2026-12-04', 100), $row('FR', '2026-12-07', 403), $row('FR', '2027-01-01', 1405),
+    ];
+
+    signedPost('/api/sync/vendors/400191', $payload)->assertOk();
+
+    $rows = Vendor::firstWhere('number', 400191)->deliveryRows()->orderBy('due_date')->get();
+    expect($rows->map(fn ($r) => $r->origin.' '.$r->due_date->toDateString())->all())
+        ->toBe(['FP 2026-11-30', 'FP 2026-12-04', 'FR 2026-12-07', 'FR 2027-01-01']);
+});
+
 test('a vendor sync replaces all the data of that vendor', function () {
     signedPost('/api/sync/vendors/400191', vendorPayload())->assertOk()->assertJson(['rows' => 4]);
 

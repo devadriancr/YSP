@@ -25,7 +25,10 @@ abstract class CpdfDocument
     // Top of the block being drawn (a label card); positions are relative to it
     protected float $offset = 0;
 
-    protected function start(): void
+    private float $pageHeight = self::PAGE_HEIGHT;
+
+    // Letter size, portrait unless $landscape
+    protected function start(bool $landscape = false): void
     {
         $fonts = dirname((new ReflectionClass(Cpdf::class))->getFileName()).'/fonts';
         $cache = storage_path('fonts');
@@ -33,7 +36,8 @@ abstract class CpdfDocument
             mkdir($cache, 0755, true);
         }
 
-        $this->pdf = new Cpdf([0, 0, self::PAGE_WIDTH, self::PAGE_HEIGHT], false, $cache, sys_get_temp_dir());
+        [$width, $this->pageHeight] = $landscape ? [self::PAGE_HEIGHT, self::PAGE_WIDTH] : [self::PAGE_WIDTH, self::PAGE_HEIGHT];
+        $this->pdf = new Cpdf([0, 0, $width, $this->pageHeight], false, $cache, sys_get_temp_dir());
         $this->pdf->selectFont("{$fonts}/Helvetica");
     }
 
@@ -78,6 +82,6 @@ abstract class CpdfDocument
     // Distance from the top of the current block to Cpdf's y (counted from the bottom of the page)
     protected function y(float $top): float
     {
-        return self::PAGE_HEIGHT - ($this->offset + $top);
+        return $this->pageHeight - ($this->offset + $top);
     }
 }

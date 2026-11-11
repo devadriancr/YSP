@@ -24,6 +24,9 @@ final class XlsxWriter
 
     public const TITLE = 4;
 
+    // Quantities with three decimals (kilograms of raw material)
+    public const DECIMAL = 5;
+
     /** @var list<array{cells: list<mixed>, style: ?int}> */
     private array $rows = [];
 
@@ -46,7 +49,7 @@ final class XlsxWriter
 
     /**
      * Each cell is a string, int, float, date or null; the style defaults by type
-     * (numbers with thousands separator, dates as dd/mm/yyyy).
+     * (numbers with thousands separator, floats with three decimals, dates as dd/mm/yyyy).
      */
     public function row(array $cells = [], ?int $style = null): self
     {
@@ -130,7 +133,7 @@ final class XlsxWriter
         }
 
         if (is_int($value) || is_float($value)) {
-            return '<c r="'.$ref.'" s="'.($style ?? self::NUMBER).'"><v>'.$value.'</v></c>';
+            return '<c r="'.$ref.'" s="'.($style ?? (is_float($value) ? self::DECIMAL : self::NUMBER)).'"><v>'.$value.'</v></c>';
         }
 
         return '<c r="'.$ref.'" s="'.($style ?? self::DEFAULT).'" t="inlineStr"><is><t xml:space="preserve">'.self::xml((string) $value).'</t></is></c>';
@@ -168,19 +171,20 @@ final class XlsxWriter
     {
         return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
             .'<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
-            .'<numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts>'
+            .'<numFmts count="2"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/><numFmt numFmtId="165" formatCode="#,##0.000"/></numFmts>'
             .'<fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="14"/><name val="Calibri"/></font></fonts>'
             .'<fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'
             .'<fill><patternFill patternType="solid"><fgColor rgb="FFF2F4F7"/><bgColor indexed="64"/></patternFill></fill></fills>'
             .'<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>'
             .'<border><left/><right/><top/><bottom style="thin"><color rgb="FFD0D5DD"/></bottom><diagonal/></border></borders>'
             .'<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-            .'<cellXfs count="5">'
+            .'<cellXfs count="6">'
             .'<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>'
             .'<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1"/>'
             .'<xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
             .'<xf numFmtId="3" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
             .'<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
+            .'<xf numFmtId="165" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>'
             .'</cellXfs>'
             .'<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>'
             .'</styleSheet>';

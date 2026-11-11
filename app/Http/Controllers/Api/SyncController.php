@@ -45,6 +45,21 @@ class SyncController extends Controller
         'due_date' => ['required', 'date_format:Y-m-d'],
     ];
 
+    private const UNRECEIVED_LINE_RULES = [
+        'part_number' => ['required', 'string', 'max:35'],
+        'number' => ['required', 'integer', 'min:0'],
+        'line' => ['required', 'integer', 'min:0', 'max:65535'],
+        'item_class' => ['nullable', 'string', 'max:2'],
+        'quantity' => ['required', 'numeric'],
+        'received_quantity' => ['nullable', 'numeric', 'min:0'],
+        'due_date' => ['required', 'date_format:Y-m-d'],
+        'material' => ['nullable', 'string', 'max:10'],
+        'symbol' => ['nullable', 'string', 'max:20'],
+        'thickness' => ['nullable', 'numeric', 'min:0'],
+        'width' => ['nullable', 'numeric', 'min:0'],
+        'length' => ['nullable', 'numeric', 'min:0'],
+    ];
+
     public function vendor(Request $request, int $number, SupplierSync $sync): JsonResponse
     {
         // A big vendor can take longer than a page; supply-relay waits up to 120 s for the answer
@@ -68,11 +83,17 @@ class SyncController extends Controller
             'part_numbers' => ['present', 'array'],
             'purchase_order_lines' => ['present', 'array'],
             'delivery_rows' => ['present', 'array'],
+            // Optional: older supply-relay versions do not send it
+            'unreceived_lines' => ['sometimes', 'array'],
         ]);
 
         $data['part_numbers'] = RowRules::validate($data['part_numbers'], 'part_numbers', self::PART_NUMBER_RULES);
         $data['purchase_order_lines'] = RowRules::validate($data['purchase_order_lines'], 'purchase_order_lines', self::PURCHASE_ORDER_LINE_RULES);
         $data['delivery_rows'] = RowRules::validate($data['delivery_rows'], 'delivery_rows', self::DELIVERY_ROW_RULES);
+        // Left out when the sender did not send it: SupplierSync tells "not sent" from "empty"
+        if (isset($data['unreceived_lines'])) {
+            $data['unreceived_lines'] = RowRules::validate($data['unreceived_lines'], 'unreceived_lines', self::UNRECEIVED_LINE_RULES);
+        }
         $validated = microtime(true);
 
         $run = $sync->vendor($number, $data);
@@ -83,6 +104,7 @@ class SyncController extends Controller
             'part_numbers' => count($data['part_numbers']),
             'purchase_order_lines' => count($data['purchase_order_lines']),
             'delivery_rows' => count($data['delivery_rows']),
+            'unreceived_lines' => count($data['unreceived_lines'] ?? []),
             'validate_s' => round($validated - $started, 2),
             'save_s' => round(microtime(true) - $validated, 2),
         ]);

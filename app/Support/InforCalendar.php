@@ -78,6 +78,27 @@ final class InforCalendar
     }
 
     /**
+     * Working days counted from $from up to each day until $to, like the YZCAL counter (CADCNT)
+     * the Infor reports subtract: days late = count[today] - count[due date].
+     * Holidays and rest days are not worked; a year not loaded from Infor counts Monday to Friday.
+     *
+     * @param  array<int, string>  $years  year => days of that year (FSC)
+     * @return array<string, int> Y-m-d => working days since $from
+     */
+    public static function workingDayCount(CarbonImmutable $from, CarbonImmutable $to, array $years): array
+    {
+        $count = [];
+        $worked = 0;
+        for ($day = $from->startOfDay(); $day->lte($to); $day = $day->addDay()) {
+            $code = isset($years[$day->year]) ? ($years[$day->year][$day->dayOfYear - 1] ?? self::WORKING_DAY) : null;
+            $isWorking = $code === null ? $day->isWeekday() : ! in_array($code, [self::HOLIDAY, self::REST_DAY], true);
+            $count[$day->toDateString()] = $worked += (int) $isWorking;
+        }
+
+        return $count;
+    }
+
+    /**
      * @return array{title: string, type: string, kind: string}
      */
     private static function label(string $code): array

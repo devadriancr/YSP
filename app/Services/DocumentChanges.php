@@ -122,6 +122,83 @@ class DocumentChanges
     }
 
     /**
+     * What is still pending on each unreceived line, keyed "order-line".
+     *
+     * @return array<string, array{part: string, pending: float}>
+     */
+    public function unreceivedPicture(Vendor $vendor): array
+    {
+        return DB::table('unreceived_lines as u')
+            ->join('part_numbers as p', 'p.id', '=', 'u.part_number_id')
+            ->where('u.vendor_id', $vendor->id)
+            ->whereColumn('u.received_quantity', '<', 'u.quantity')
+            ->get(['u.number', 'u.line', 'u.quantity', 'u.received_quantity', 'p.number as part'])
+            ->mapWithKeys(fn ($row) => ["{$row->number}-{$row->line}" => [
+                'part' => $row->part,
+                'pending' => round((float) $row->quantity - (float) $row->received_quantity, 3),
+            ]])
+            ->all();
+    }
+
+    /**
+     * Saves a line that appeared (new), one that is gone because it was received in
+     * full or deleted in Infor (removed) and one whose pending quantity changed.
+     *
+     * @return int how many lines changed
+     */
+    public function recordUnreceived(Vendor $vendor, array $before, array $after, CarbonImmutable $detectedAt): int
+    {
+        $rows = [];
+        foreach (array_unique([...array_keys($before), ...array_keys($after)]) as $key) {
+            $was = $before[$key]['pending'] ?? null;
+            $is = $after[$key]['pending'] ?? null;
+            if ($was !== null && $is !== null && abs($was - $is) <= 0.0005) {
+                continue;
+            }
+
+            [$number, $line] = explode('-', (string) $key);
+            $rows[] = [
+                'vendor_id' => $vendor->id,
+                'number' => (int) $number,
+                'line' => (int) $line,
+                'part' => ($after[$key] ?? $before[$key])['part'],
+                'kind' => $was === null ? 'new' : ($is === null ? 'removed' : 'changed'),
+                'before' => $was,
+                'after' => $is,
+                'detected_at' => $detectedAt,
+            ];
+        }
+
+        DB::table('unreceived_changes')->insert($rows);
+        $vendor->unreceivedChanges()->where('detected_at', '<', $detectedAt->subDays(self::KEEP_DAYS))->delete();
+
+        return count($rows);
+    }
+
+    /**
+     * The latest change of each unreceived line in the last RECENT_DAYS, keyed "order-line".
+     *
+     * @return array<string, array{kind: string, part: string, before: float|null, after: float|null, at: string}>
+     */
+    public function unreceivedRecent(Vendor $vendor): array
+    {
+        return $vendor->unreceivedChanges()
+            ->where('detected_at', '>=', now()->subDays(self::RECENT_DAYS))
+            ->orderBy('detected_at')
+            ->orderBy('id')
+            ->get()
+            ->keyBy(fn ($change) => "{$change->number}-{$change->line}") // newer ones overwrite
+            ->map(fn ($change) => [
+                'kind' => $change->kind,
+                'part' => $change->part,
+                'before' => $change->before,
+                'after' => $change->after,
+                'at' => $change->detected_at->timezone(config('app.timezone'))->toIso8601String(),
+            ])
+            ->all();
+    }
+
+    /**
      * Total quantity per day and part, from `from` on.
      *
      * @return array<string, array<string, float>>

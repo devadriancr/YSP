@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\SyncRun;
+use App\Models\UnreceivedLine;
 use App\Models\Vendor;
 use App\Models\WorkCalendar;
 use Carbon\CarbonImmutable;
@@ -30,29 +31,36 @@ class SupplierSync
 
     private const DELIVERY_DEFAULTS = ['number' => null, 'line' => null];
 
+    private const UNRECEIVED_DEFAULTS = ['item_class' => '', 'received_quantity' => 0,'material' => null, 'symbol' => null, 'thickness' => 0, 'width' => 0, 'length' => 0];
+
     /**
-     * @param  array{vendor: array, part_numbers: array, purchase_order_lines: array, delivery_rows: array}  $data
+     * @param  array{vendor: array, part_numbers: array, purchase_order_lines: array, delivery_rows: array, unreceived_lines?: array}  $data
      */
     public function vendor(int $number, array $data): SyncRun
     {
-        $rows = count($data['part_numbers']) + count($data['purchase_order_lines']) + count($data['delivery_rows']);
+        // An older supply-relay does not send the list: that is not the same as an empty one
+        $sentUnreceived = isset($data['unreceived_lines']);
+        $data['unreceived_lines'] ??= [];
+        $rows =count($data['part_numbers']) + count($data['purchase_order_lines']) + count($data['delivery_rows']) + count($data['unreceived_lines']);
 
-        return $this->track('vendor', $rows, function (SyncRun $run) use ($number, $data) {
+        return $this->track('vendor', $rows, function (SyncRun $run) use ($number, $data, $sentUnreceived) {
             $now = now();
             $today = CarbonImmutable::today();
 
             // The first load of a vendor has nothing to compare with
             $previous = Vendor::firstWhere('number', $number);
             $before = $previous?->synced_at ? $this->changes->picture($previous, $today) : null;
+            $beforeUnreceived = $previous?->unreceived_synced_at ? $this->changes->unreceivedPicture($previous) : null;
 
             $vendor = Vendor::updateOrCreate(
                 ['number' => $number],
-                [...$data['vendor'], 'active' => true, 'synced_at' => $now],
+                [...$data['vendor'], 'active' => true, 'synced_at' => $now, 'unreceived_synced_at' => $sentUnreceived ? $now : null],
             );
             $run->vendor()->associate($vendor);
 
             $vendor->purchaseOrderLines()->delete();
             $vendor->deliveryRows()->delete();
+            $vendor->unreceivedLines()->delete();
             $vendor->partNumbers()->delete();
 
             $this->insert('part_numbers', collect($data['part_numbers'])
@@ -64,10 +72,24 @@ class SupplierSync
             $partIds = $vendor->partNumbers()->pluck('id', 'number');
 
             $lines = array_map(fn (array $line) => [...self::LINE_DEFAULTS, ...$line], $data['purchase_order_lines']);
-            $deliveries = array_map(fn (array $row) => [...self::DELIVERY_DEFAULTS, ...$row], $data['delivery_rows']);
+            $deliveries = $this->withoutEarlyForecasts(array_map(fn (array $row) => [...self::DELIVERY_DEFAULTS, ...$row], $data['delivery_rows']));
 
             $this->insert('purchase_order_lines', $this->withPartIds($lines, $partIds, 'purchase_order_lines', $vendor->id, $now));
             $this->insert('delivery_rows', $this->withPartIds($deliveries, $partIds, 'delivery_rows', $vendor->id, $now));
+
+            // Only the last year is kept; a null size from Infor takes the default: those columns are not nullable
+            $since = UnreceivedLine::since()->toDateString();
+            $unreceived = collect($data['unreceived_lines'])
+                ->filter(fn (array $row) => $row['due_date'] >= $since)
+                ->map(fn (array $row) => [...self::UNRECEIVED_DEFAULTS, ...array_filter($row, fn ($value) => $value !== null)])
+                ->all();
+            $this->insert('unreceived_lines', $this->withPartIds($unreceived, $partIds, 'unreceived_lines', $vendor->id, $now));
+            // Lines of vendors that were not synced since they aged past the year
+            UnreceivedLine::where('due_date', '<', $since)->delete();
+
+            if ($beforeUnreceived !== null && $sentUnreceived) {
+                $this->changes->recordUnreceived($vendor, $beforeUnreceived, $this->changes->unreceivedPicture($vendor), $now->toImmutable());
+            }
 
             if ($before !== null) {
                 $this->changes->record($vendor, $before, $this->changes->picture($vendor, $today), $now->toImmutable());
@@ -131,6 +153,24 @@ class SupplierSync
 
             return [...$row, 'vendor_id' => $vendorId, 'part_number_id' => $partId, 'created_at' => $now, 'updated_at' => $now];
         })->all();
+    }
+
+    /**
+     * YPU204B1 reads the forecasts (FR) from a start date the planner types in (STRDAT), so
+     * the weeks still covered by firm planned orders (FP) show no forecast. Until that rule
+     * is defined, the start is the day after the vendor's last FP, which is what Infor printed
+     * (vendor 410010 on 2026-11-10: FP up to 12-04, FR from 12-07).
+     */
+    private function withoutEarlyForecasts(array $rows): array
+    {
+        $lastFirm = collect($rows)->where('origin', 'FP')->max('due_date');
+
+        // shortcut: a vendor without FP keeps all its forecasts; Infor would cut them at STRDAT
+        if ($lastFirm === null) {
+            return $rows;
+        }
+
+        return array_values(array_filter($rows, fn (array $row) => $row['origin'] !== 'FR' || $row['due_date'] > $lastFirm));
     }
 
     private function insert(string $table, array $rows): void

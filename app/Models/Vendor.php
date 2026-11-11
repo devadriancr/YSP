@@ -27,6 +27,7 @@ class Vendor extends Model
         'email',
         'active',
         'synced_at',
+        'unreceived_synced_at',
     ];
 
     protected function casts(): array
@@ -35,6 +36,7 @@ class Vendor extends Model
             'number' => 'integer',
             'active' => 'boolean',
             'synced_at' => 'datetime',
+            'unreceived_synced_at' => 'datetime',
         ];
     }
 
@@ -56,6 +58,16 @@ class Vendor extends Model
     public function deliveryRows(): HasMany
     {
         return $this->hasMany(DeliveryRow::class);
+    }
+
+    public function unreceivedLines(): HasMany
+    {
+        return $this->hasMany(UnreceivedLine::class);
+    }
+
+    public function unreceivedChanges(): HasMany
+    {
+        return $this->hasMany(UnreceivedChange::class);
     }
 
     public function documentDownloads(): HasMany

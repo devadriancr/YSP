@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\UnreceivedController;
 use App\Http\Controllers\UserController;
 
 // Locale Switch Route
@@ -12,10 +13,8 @@ Route::get('/locale/{locale}', [LocaleController::class, 'switch'])->name('local
 use App\Http\Controllers\DashboardController;
 
 Route::middleware('auth')->group(function () {
-    // dashboard pages
-    Route::get('/', function () {
-        return view('pages.dashboard.ecommerce', ['title' => 'E-commerce Dashboard']);
-    })->name('dashboard');
+    // The portal opens on the calendar (also after login, which comes back to "/" when that was the page asked for)
+    Route::get('/', fn () => redirect()->route('calendar'))->name('dashboard');
 
     // calender pages
     Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar');
@@ -28,6 +27,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/calendar/{date}/delivery-instruction/excel', [CalendarController::class, 'downloadDeliveryInstructionExcel'])
         ->name('calendar.delivery-instruction.excel')->middleware('throttle:30,1');
     Route::get('/calendar/{date}/details', [CalendarController::class, 'details'])->name('calendar.details');
+
+    // overdue parts and raw material not received (Infor YPU705B / YPU715B)
+    Route::get('/unreceived', [UnreceivedController::class, 'index'])->name('unreceived');
+    Route::get('/unreceived/{type}/{format}', [UnreceivedController::class, 'download'])
+        ->whereIn('type', ['parts', 'materials'])->whereIn('format', ['pdf', 'excel'])
+        ->name('unreceived.download')->middleware('throttle:30,1');
 
     // users (admins only)
     Route::resource('users', UserController::class)
