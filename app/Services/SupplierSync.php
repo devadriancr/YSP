@@ -175,7 +175,14 @@ class SupplierSync
 
     private function insert(string $table, array $rows): void
     {
-        foreach (array_chunk($rows, self::CHUNK_SIZE) as $chunk) {
+        if ($rows === []) {
+            return;
+        }
+
+        // SQL Server takes at most 2100 parameters per statement
+        $size = min(self::CHUNK_SIZE, intdiv(2000, count(reset($rows))));
+
+        foreach (array_chunk($rows, $size) as $chunk) {
             DB::table($table)->insert($chunk);
         }
     }

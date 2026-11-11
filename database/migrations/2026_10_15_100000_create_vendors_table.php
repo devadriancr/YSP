@@ -29,6 +29,8 @@ return new class extends Migration
             $table->string('email', 50)->nullable();
             $table->boolean('active')->default(true);
             $table->timestamp('synced_at')->nullable();
+            // Set when the sync sent the unreceived list: without it there is nothing to compare with
+            $table->timestamp('unreceived_synced_at')->nullable();
             $table->timestamps();
         });
     }

@@ -23,16 +23,10 @@ return new class extends Migration
 
             $table->index(['vendor_id', 'detected_at']);
         });
-
-        // Set when the sync sent the unreceived list: without it there is nothing to compare with
-        Schema::table('vendors', function (Blueprint $table) {
-            $table->timestamp('unreceived_synced_at')->nullable();
-        });
     }
 
     public function down(): void
     {
-        Schema::table('vendors', fn (Blueprint $table) => $table->dropColumn('unreceived_synced_at'));
         Schema::dropIfExists('unreceived_changes');
     }
 };

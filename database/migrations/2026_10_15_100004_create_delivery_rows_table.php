@@ -15,7 +15,8 @@ return new class extends Migration
         Schema::create('delivery_rows', function (Blueprint $table) {
             $table->id();
             $table->foreignId('vendor_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('part_number_id')->constrained()->cascadeOnDelete();
+            // no action: SQL Server rejects two cascade paths from vendors; the sync deletes the rows before their parts
+            $table->foreignId('part_number_id')->constrained()->noActionOnDelete();
             $table->string('origin', 2);
             $table->unsignedInteger('number')->nullable();
             $table->unsignedSmallInteger('line')->nullable();

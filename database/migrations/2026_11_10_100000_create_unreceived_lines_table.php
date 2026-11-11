@@ -12,7 +12,8 @@ return new class extends Migration
         Schema::create('unreceived_lines', function (Blueprint $table) {
             $table->id();
             $table->foreignId('vendor_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('part_number_id')->constrained()->cascadeOnDelete();
+            // no action: SQL Server rejects two cascade paths from vendors; the sync deletes the rows before their parts
+            $table->foreignId('part_number_id')->constrained()->noActionOnDelete();
             $table->unsignedInteger('number');
             $table->unsignedSmallInteger('line');
             $table->string('item_class', 2);

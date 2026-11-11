@@ -11,12 +11,6 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            $table->string('role', 20)
-                ->after('id')
-                ->default('supplier');
-        });
-
         // A user can work for several vendors and a vendor can have several users
         Schema::create('user_vendor', function (Blueprint $table) {
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
@@ -33,9 +27,5 @@ return new class extends Migration
     public function down(): void
     {
         Schema::dropIfExists('user_vendor');
-
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropColumn('role');
-        });
     }
 };

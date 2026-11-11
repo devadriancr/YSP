@@ -15,10 +15,12 @@ return new class extends Migration
         Schema::create('purchase_order_lines', function (Blueprint $table) {
             $table->id();
             $table->foreignId('vendor_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('part_number_id')->constrained()->cascadeOnDelete();
+            // no action: SQL Server rejects two cascade paths from vendors; the sync deletes the rows before their parts
+            $table->foreignId('part_number_id')->constrained()->noActionOnDelete();
             $table->unsignedInteger('number');
             $table->unsignedSmallInteger('line');
             $table->decimal('quantity', 14, 3);
+            $table->decimal('received_quantity', 14, 3)->default(0);
             $table->date('due_date');
             $table->string('shift', 1)->nullable();
             $table->string('warehouse', 3)->nullable();
