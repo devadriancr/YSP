@@ -26,7 +26,7 @@ final class Barcodes
      */
     public static function qr(string $text): array
     {
-        $matrix = Encoder::encode($text, ErrorCorrectionLevel::M(), 'ISO-8859-1', null, false)->getMatrix();
+        $matrix = Encoder::encode($text, ErrorCorrectionLevel::L(), 'ISO-8859-1', null, false)->getMatrix();
         $size = $matrix->getWidth();
         $rects = [];
 
