@@ -428,7 +428,7 @@ test('the calendar shows what infor changed from today on', function () {
         ->json();
 
     expect($days)->not->toHaveKey('2026-10-14')                          // before today: not reported
-        ->and($days['2026-10-20']['changes']['labels']['parts'])->toBe($parts)
+        ->and($days['2026-10-20']['changes']['labels']['kind'])->toBe('modified')
         ->and($days['2026-10-20']['changes']['labels']['recent'])->toBeTrue()
         ->and($days['2026-10-21']['changes']['labels']['recent'])->toBeFalse(); // listed, but too old to mark the day
 });

@@ -30,6 +30,16 @@ class DocumentChange extends Model
         ];
     }
 
+    // new: the whole document arrived; removed: all of it is gone; modified: anything else
+    public function kind(): string
+    {
+        return match (true) {
+            $this->isNew() => 'new',
+            $this->parts !== [] && collect($this->parts)->every(fn (array $part) => $part['after'] === null) => 'removed',
+            default => 'modified',
+        };
+    }
+
     // The whole document arrived in this sync: every part is new
     public function isNew(): bool
     {

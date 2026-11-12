@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\DeliveryRow;
+use App\Models\DocumentSnapshot;
 use App\Models\PartNumber as PartNumberModel;
 use App\Models\PurchaseOrderLine;
 use App\Models\UnreceivedLine;
@@ -23,7 +24,8 @@ class SupplierDocuments
     // YPU202B: this vendor gets one label per PO line with the full quantity
     private const ONE_LABEL_PER_LINE_VENDOR = 101004;
 
-    public function __construct(private Vendor $vendor) {}
+    // With a snapshot the documents are built from how the data was then, not from the current data
+    public function __construct(private Vendor $vendor, private ?DocumentSnapshot $snapshot = null) {}
 
     public function vendor(): Vendor
     {
@@ -131,10 +133,7 @@ class SupplierDocuments
      */
     public function deliveryInstruction(CarbonImmutable $issued): Collection
     {
-        return $this->vendor->deliveryRows()
-            ->with('partNumber')
-            ->whereDate('due_date', '>=', $issued->toDateString())
-            ->get()
+        return $this->deliveryRowsFrom($issued)
             ->map(fn (DeliveryRow $row) => [
                 'part' => PartNumber::format($row->partNumber->number, $row->partNumber->project),
                 'raw_part' => $row->partNumber->number,
@@ -256,10 +255,7 @@ class SupplierDocuments
      */
     public function deliveryInstructionDetails(CarbonImmutable $date): array
     {
-        return $this->vendor->deliveryRows()
-            ->with('partNumber')
-            ->whereDate('due_date', '>=', $date->toDateString())
-            ->get()
+        return $this->deliveryRowsFrom($date)
             ->sortBy([
                 fn ($a, $b) => $a->partNumber->number <=> $b->partNumber->number,
                 fn ($a, $b) => $a->due_date <=> $b->due_date,
@@ -388,11 +384,7 @@ class SupplierDocuments
      */
     private function labelLines(CarbonImmutable $from, CarbonImmutable $to): Collection
     {
-        return $this->vendor->purchaseOrderLines()
-            ->with('partNumber')
-            ->whereDate('due_date', '>=', $from->toDateString())
-            ->whereDate('due_date', '<=', $to->toDateString())
-            ->get()
+        return $this->purchaseOrderLinesBetween($from, $to)
             ->sortBy([
                 fn ($a, $b) => $a->due_date <=> $b->due_date,
                 fn ($a, $b) => $a->partNumber->number <=> $b->partNumber->number,
@@ -400,6 +392,37 @@ class SupplierDocuments
                 ['line', 'asc'],
             ])
             ->values();
+    }
+
+    /**
+     * @return Collection<int, PurchaseOrderLine> with partNumber
+     */
+    private function purchaseOrderLinesBetween(CarbonImmutable $from, CarbonImmutable $to): Collection
+    {
+        if ($this->snapshot) {
+            return $this->snapshot->lines()->filter(fn ($line) => $line->due_date->between($from, $to));
+        }
+
+        return $this->vendor->purchaseOrderLines()
+            ->with('partNumber')
+            ->whereDate('due_date', '>=', $from->toDateString())
+            ->whereDate('due_date', '<=', $to->toDateString())
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, DeliveryRow> with partNumber
+     */
+    private function deliveryRowsFrom(CarbonImmutable $date): Collection
+    {
+        if ($this->snapshot) {
+            return $this->snapshot->rows()->filter(fn ($row) => $row->due_date->gte($date));
+        }
+
+        return $this->vendor->deliveryRows()
+            ->with('partNumber')
+            ->whereDate('due_date', '>=', $date->toDateString())
+            ->get();
     }
 
     private function boxCount(mixed $quantity, int $snp): int

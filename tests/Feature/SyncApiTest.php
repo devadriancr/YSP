@@ -253,3 +253,45 @@ test('the received quantity is optional and cannot be negative', function () {
         ->assertUnprocessable()
         ->assertJsonValidationErrors(['purchase_order_lines.0.received_quantity']);
 });
+
+test('a changed day keeps its original and each change as a version that can be downloaded', function () {
+    $this->travelTo('2026-10-20 09:00');
+    $line = fn (float $quantity) => [
+        'part_number' => 'BDTS-28-911A', 'number' => 12345, 'line' => 1,
+        'quantity' => $quantity, 'due_date' => '2026-10-21', 'shift' => 'A', 'warehouse' => 'YK1',
+    ];
+
+    signedPost('/api/sync/vendors/400191', vendorPayload([$line(25)]))->assertOk();
+    expect(\App\Models\DocumentSnapshot::count())->toBe(1); // the first load is the baseline
+
+    signedPost('/api/sync/vendors/400191', vendorPayload([$line(25)]), timestamp: time() + 1)->assertOk();
+    expect(\App\Models\DocumentSnapshot::count())->toBe(1); // nothing changed: no new snapshot
+
+    $this->travelTo('2026-10-20 10:00');
+    signedPost('/api/sync/vendors/400191', vendorPayload([$line(40)]), timestamp: time() + 2)->assertOk();
+    expect(\App\Models\DocumentSnapshot::count())->toBe(2);
+
+    $vendor = \App\Models\Vendor::firstWhere('number', 400191);
+    $user = \App\Models\User::factory()->create();
+    $user->vendors()->attach($vendor->id);
+
+    $versions = $this->actingAs($user)->getJson('/calendar/2026-10-21/versions')->assertOk()->json('labels');
+    expect($versions)->toHaveCount(2)
+        ->and($versions[0]['original'])->toBeTrue()
+        ->and($versions[1])->toMatchArray(['original' => false, 'kind' => 'modified']);
+
+    foreach ($versions as $version) {
+        $response = $this->get("/calendar/2026-10-21/versions/labels/{$version['snapshot']}?ver=1")
+            ->assertOk()->assertHeader('Content-Type', 'application/pdf');
+        expect($response->headers->get('Content-Disposition'))->toStartWith('inline');
+    }
+
+    // The original has the old quantity: 25 pieces are 3 boxes of 10; the change has 40 pieces, 4 boxes
+    $labels = fn (int $snapshot) => (new \App\Services\SupplierDocuments($vendor, \App\Models\DocumentSnapshot::find($snapshot)))
+        ->labels(\Carbon\CarbonImmutable::parse('2026-10-21'))->count();
+    expect($labels($versions[0]['snapshot']))->toBe(3)->and($labels($versions[1]['snapshot']))->toBe(4);
+
+    // Another vendor's snapshot is not reachable
+    $other = \App\Models\Vendor::create(['number' => 400999, 'name' => 'OTHER']);
+    $this->get("/calendar/2026-10-21/versions/labels/{$other->documentSnapshots()->create(['taken_at' => now(), 'payload' => ''])->id}")->assertNotFound();
+});

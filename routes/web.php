@@ -27,6 +27,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/calendar/{date}/delivery-instruction/excel', [CalendarController::class, 'downloadDeliveryInstructionExcel'])
         ->name('calendar.delivery-instruction.excel')->middleware('throttle:30,1');
     Route::post('/calendar/{date}/viewed', [CalendarController::class, 'markViewed'])->name('calendar.viewed');
+    Route::get('/calendar/{date}/versions', [CalendarController::class, 'versions'])->name('calendar.versions');
+    Route::get('/calendar/{date}/versions/{document}/{snapshot}', [CalendarController::class, 'version'])
+        ->whereIn('document', ['labels', 'di'])->whereNumber('snapshot')
+        ->name('calendar.version')->middleware('throttle:30,1');
     Route::get('/calendar/{date}/details', [CalendarController::class, 'details'])->name('calendar.details');
 
     // overdue parts and raw material not received (Infor YPU705B / YPU715B)

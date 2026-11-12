@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Excel\DeliveryInstruction as DeliveryInstructionSheet;
+use App\Models\DocumentChange;
 use App\Models\DocumentDownload;
+use App\Models\DocumentSnapshot;
 use App\Models\DocumentView;
 use App\Models\User;
 use App\Models\Vendor;
@@ -119,7 +121,7 @@ class CalendarController extends Controller
                     'recent' => $change->detected_at->gte($recentSince),
                     // Whole document arrived and this user has not opened the day since
                     'new' => $change->detected_at->gte($recentSince) && $change->isNew() && ! $viewed->has($change->id),
-                    'parts' => $change->parts,
+                    'kind' => $change->kind(),
                 ];
             }
         }
@@ -157,6 +159,68 @@ class CalendarController extends Controller
         }
 
         return response()->json(['ok' => true]);
+    }
+
+    /**
+     * The versions of each document of a day that can be shown again: the original (before the first
+     * change Infor made) and each change, the last one being the current. Only changes found by a sync
+     * since versions are kept have a snapshot.
+     */
+    public function versions(Request $request, string $date): JsonResponse
+    {
+        $day = $this->parseVisibleDay($date);
+        $vendor = $this->documentsFor($request)->vendor();
+        $changes = $vendor->documentChanges()->whereDate('date', $day->toDateString())->whereNotNull('snapshot_id')
+            ->orderBy('detected_at')->orderBy('id')->get()->groupBy('document');
+        $snapshots = $vendor->documentSnapshots()->get(['id', 'taken_at'])->keyBy('id');
+
+        $result = [];
+        foreach ($changes as $document => $list) {
+            $versions = [];
+            $first = $list->first();
+            // What it was before the first change: the snapshot before, unless the document was born then
+            if (! $first->isNew() && $original = $snapshots->where('id', '<', $first->snapshot_id)->last()) {
+                $versions[] = ['snapshot' => $original->id, 'original' => true, 'at' => $original->taken_at->toIso8601String()];
+            }
+            foreach ($list as $change) {
+                $versions[] = ['snapshot' => $change->snapshot_id, 'original' => false, 'kind' => $change->kind(),
+                    'at' => $change->detected_at->toIso8601String()];
+            }
+            $result[$document] = $versions;
+        }
+
+        return response()->json($result);
+    }
+
+    /**
+     * An old version of a document as a PDF: shown in the browser (?ver=1) or downloaded.
+     */
+    public function version(Request $request, string $date, string $document, int $snapshot): Response
+    {
+        $day = $this->parseDay($date);
+        abort_unless(in_array($document, [DocumentChanges::LABELS, DocumentChanges::DELIVERY_INSTRUCTION], true), 404);
+
+        $vendor = $this->documentsFor($request)->vendor();
+        $snap = $vendor->documentSnapshots()->findOrFail($snapshot);
+        $documents = new SupplierDocuments($vendor, $snap);
+        $stamp = $snap->taken_at->timezone(config('app.timezone'))->format('Ymd_His');
+
+        if ($document === DocumentChanges::LABELS) {
+            $labels = $documents->labels($day);
+            abort_if($labels->isEmpty(), 404, __('No hay etiquetas para este día.'));
+            $pdf = (new IdentificationCards)->render($labels, config('portal.company_name'));
+            $name = "{$day->format('Ymd')}_{$vendor->number}_IDENTIFICATION_CARD_{$stamp}.pdf";
+        } else {
+            $parts = $documents->deliveryInstruction($day);
+            abort_if($parts->isEmpty(), 404, __('No hay instrucción de entrega para este día.'));
+            $pdf = (new DeliveryInstruction)->render($parts, $vendor->number, $vendor->name, $day, config('portal.company_name'));
+            $name = "{$day->format('Ymd')}_{$vendor->number}_DELIVERY_INSTRUCTION_{$stamp}.pdf";
+        }
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => ($request->boolean('ver') ? 'inline' : 'attachment')."; filename=\"{$name}\"",
+        ]);
     }
 
     public function downloadLabels(Request $request, string $date): Response

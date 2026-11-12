@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\DocumentSnapshot;
 use App\Models\SyncRun;
 use App\Models\UnreceivedLine;
 use App\Models\Vendor;
@@ -91,10 +92,31 @@ class SupplierSync
                 $this->changes->recordUnreceived($vendor, $beforeUnreceived, $this->changes->unreceivedPicture($vendor), $now->toImmutable());
             }
 
-            if ($before !== null) {
-                $this->changes->record($vendor, $before, $this->changes->picture($vendor, $today), $now->toImmutable());
+            $changed = $before === null ? 0 : $this->changes->record($vendor, $before, $this->changes->picture($vendor, $today), $now->toImmutable());
+
+            // A snapshot after every change (and the first one, so the first change has an "original" to compare with)
+            if ($changed > 0 || ! $vendor->documentSnapshots()->exists()) {
+                $snapshot = $this->snapshot($vendor, $today, $now->toImmutable());
+                $vendor->documentChanges()->whereNull('snapshot_id')->where('detected_at', '>=', $now->startOfSecond())->update(['snapshot_id' => $snapshot->id]);
             }
         });
+    }
+
+    // Kept this long so a supplier can show what it was given before a change
+    private const SNAPSHOT_KEEP_DAYS = 60;
+
+    /**
+     * The lines and rows that can still be downloaded (today and the week before), as they are now.
+     */
+    private function snapshot(Vendor $vendor, CarbonImmutable $today, CarbonImmutable $at): DocumentSnapshot
+    {
+        $from = $today->subWeek()->toDateString();
+        $lines = $vendor->purchaseOrderLines()->with('partNumber')->whereDate('due_date', '>=', $from)->get();
+        $rows = $vendor->deliveryRows()->with('partNumber')->whereDate('due_date', '>=', $from)->get();
+
+        $vendor->documentSnapshots()->where('taken_at', '<', $at->subDays(self::SNAPSHOT_KEEP_DAYS))->delete();
+
+        return $vendor->documentSnapshots()->create(['taken_at' => $at, 'payload' => DocumentSnapshot::encode($lines, $rows)]);
     }
 
     /**

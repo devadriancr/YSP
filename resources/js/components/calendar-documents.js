@@ -34,6 +34,9 @@ export function calendarDocuments({ urls, texts, locale }) {
         loadingDetails: false,
         detailsError: false,
         search: '',
+        versions: {},
+        versionsDate: null,
+        versionsLoaded: false,
         // Labels details: one search for the shortages and one for all the lines
         shortSearch: '',
         lineSearch: '',
@@ -51,6 +54,9 @@ export function calendarDocuments({ urls, texts, locale }) {
         openDay(detail) {
             this.day = { labels: 0, di: 0, past: false, workday: null, ...detail };
             this.view = null;
+            this.versions = {};
+            this.versionsDate = null;
+            this.versionsLoaded = false;
             this.open = true;
             this.$nextTick(() => this.$refs.closeButton?.focus());
         },
@@ -157,20 +163,36 @@ export function calendarDocuments({ urls, texts, locale }) {
             return this.day.date < today;
         },
 
-        // Changes Infor made to the day: { at, recent, parts: [{ part, before, after }] }
+        // What Infor did to the day: { at, kind: new | modified | removed, recent }, in a few words
         changeText(change) {
-            const date = new Date(change.at).toLocaleString(dateLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
-            return fill(texts.updatedOn, { date });
+            return `${texts.changeKinds[change.kind]} · ${this.shortDateTime(change.at)}`;
         },
-        changePartText(part) {
-            if (part.before === null) return fill(texts.partAdded, { after: this.num(part.after) });
-            if (part.after === null) return fill(texts.partRemoved, { before: this.num(part.before) });
-            return fill(texts.partChanged, { before: this.num(part.before), after: this.num(part.after) });
+        shortDateTime(iso) {
+            return new Date(iso).toLocaleString(dateLocale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
         },
-        changeTone(part) {
-            if (part.after === null) return 'text-error-600 dark:text-error-400';
-            if (part.before === null) return 'text-success-600 dark:text-success-400';
-            return 'text-gray-700 dark:text-gray-300';
+
+        // Versions of a document: the original and each change, the last is the current
+        versionName(version) {
+            return version.original ? texts.versionOriginal : texts.changeKinds[version.kind];
+        },
+        versionUrl(kind, version, inline) {
+            const url = urls.version.replace('__DATE__', this.day.date).replace('__DOC__', kind).replace('__SNAP__', version.snapshot);
+            return inline ? `${url}?ver=1` : url;
+        },
+        async loadVersions(kind) {
+            if (this.versionsDate === this.day.date) return;
+            const date = this.day.date;
+            this.versionsDate = date;
+            this.versionsLoaded = false;
+            try {
+                const response = await fetch(urls.versions.replace('__DATE__', date), { headers: { Accept: 'application/json' } });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                if (this.day.date === date) this.versions = await response.json();
+            } catch (e) {
+                this.versionsDate = null; // tries again the next time it is opened
+            } finally {
+                if (this.day.date === date) this.versionsLoaded = true;
+            }
         },
 
         isPending(kind) {

@@ -75,6 +75,11 @@ class Vendor extends Model
         return $this->hasMany(DocumentDownload::class);
     }
 
+    public function documentSnapshots(): HasMany
+    {
+        return $this->hasMany(DocumentSnapshot::class);
+    }
+
     public function documentChanges(): HasMany
     {
         return $this->hasMany(DocumentChange::class);
