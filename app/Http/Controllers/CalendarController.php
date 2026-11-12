@@ -98,16 +98,11 @@ class CalendarController extends Controller
     }
 
     /**
-     * Adds what Infor changed on each day from today on: the parts and when it was found.
+     * Adds what Infor changed on each day (as long as the changes are kept): what kind and when it was found.
      * "recent" marks the day in the calendar; older changes are only listed in the day.
      */
     private function withChanges(DocumentChanges $changes, Vendor $vendor, User $user, array $days, CarbonImmutable $from, CarbonImmutable $to): array
     {
-        $from = $from->max(CarbonImmutable::today());
-        if ($to->lt($from)) {
-            return $days;
-        }
-
         $recentSince = now()->subDays(DocumentChanges::RECENT_DAYS);
         $latest = $changes->latest($vendor, $from, $to);
         $viewed = DocumentView::where('user_id', $user->id)
@@ -122,6 +117,7 @@ class CalendarController extends Controller
                     // Whole document arrived and this user has not opened the day since
                     'new' => $change->detected_at->gte($recentSince) && $change->isNew() && ! $viewed->has($change->id),
                     'kind' => $change->kind(),
+                    'versioned' => $change->snapshot_id !== null,
                 ];
             }
         }
@@ -193,11 +189,22 @@ class CalendarController extends Controller
     }
 
     /**
-     * An old version of a document as a PDF: shown in the browser (?ver=1) or downloaded.
+     * What an old version of the day's documents contained, for the day modal (like details()).
+     */
+    public function versionDetails(Request $request, string $date, int $snapshot): JsonResponse
+    {
+        $day = $this->parseVisibleDay($date);
+        $vendor = $this->documentsFor($request)->vendor();
+
+        return response()->json((new SupplierDocuments($vendor, $vendor->documentSnapshots()->findOrFail($snapshot)))->details($day));
+    }
+
+    /**
+     * An old version of a document: as a PDF shown in the browser  or downloaded, or the delivery instruction as Excel (?formato=excel).
      */
     public function version(Request $request, string $date, string $document, int $snapshot): Response
     {
-        $day = $this->parseDay($date);
+        $day = $this->parseVisibleDay($date); // past days too: it is what the supplier was given then
         abort_unless(in_array($document, [DocumentChanges::LABELS, DocumentChanges::DELIVERY_INSTRUCTION], true), 404);
 
         $vendor = $this->documentsFor($request)->vendor();
@@ -210,6 +217,12 @@ class CalendarController extends Controller
             abort_if($labels->isEmpty(), 404, __('No hay etiquetas para este día.'));
             $pdf = (new IdentificationCards)->render($labels, config('portal.company_name'));
             $name = "{$day->format('Ymd')}_{$vendor->number}_IDENTIFICATION_CARD_{$stamp}.pdf";
+        } elseif ($request->query('formato') === 'excel') {
+            $parts = $documents->deliveryInstructionDetails($day);
+            abort_if($parts === [], 404, __('No hay instrucción de entrega para este día.'));
+            $xlsx = (new DeliveryInstructionSheet)->render($parts, $vendor->number, $vendor->name, $day, config('portal.company_name'));
+
+            return $this->file($xlsx, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', "{$day->format('Ymd')}_{$vendor->number}_DELIVERY_INSTRUCTION_{$stamp}.xlsx");
         } else {
             $parts = $documents->deliveryInstruction($day);
             abort_if($parts->isEmpty(), 404, __('No hay instrucción de entrega para este día.'));
@@ -219,7 +232,7 @@ class CalendarController extends Controller
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
-            'Content-Disposition' => ($request->boolean('ver') ? 'inline' : 'attachment')."; filename=\"{$name}\"",
+            'Content-Disposition' => "attachment; filename=\"{$name}\"",
         ]);
     }
 

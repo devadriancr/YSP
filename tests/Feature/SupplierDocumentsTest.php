@@ -416,7 +416,7 @@ test('the calendar shows how much of each day was received and which parts are s
         ->assertJsonPath('2026-10-20.receipt', ['ordered' => 25, 'received' => 25]);
 });
 
-test('the calendar shows what infor changed from today on', function () {
+test('the calendar shows what infor changed, past days too', function () {
     $vendor = vendorWithLine(400191, '2026-10-20');
     $parts = [['part' => 'BDTS28911A', 'before' => 20, 'after' => 25]];
     foreach (['2026-10-14' => '2026-10-14 08:00', '2026-10-20' => '2026-10-15 08:00', '2026-10-21' => '2026-10-01 08:00'] as $date => $at) {
@@ -427,8 +427,9 @@ test('the calendar shows what infor changed from today on', function () {
         ->getJson('/calendar/documents?start=2026-10-01&end=2026-11-01')
         ->json();
 
-    expect($days)->not->toHaveKey('2026-10-14')                          // before today: not reported
+    expect($days['2026-10-14']['changes']['labels']['recent'])->toBeTrue()  // a past day keeps its history
         ->and($days['2026-10-20']['changes']['labels']['kind'])->toBe('modified')
+        ->and($days['2026-10-20']['changes']['labels']['versioned'])->toBeFalse() # no snapshot: the buttons stay
         ->and($days['2026-10-20']['changes']['labels']['recent'])->toBeTrue()
         ->and($days['2026-10-21']['changes']['labels']['recent'])->toBeFalse(); // listed, but too old to mark the day
 });

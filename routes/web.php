@@ -28,6 +28,8 @@ Route::middleware('auth')->group(function () {
         ->name('calendar.delivery-instruction.excel')->middleware('throttle:30,1');
     Route::post('/calendar/{date}/viewed', [CalendarController::class, 'markViewed'])->name('calendar.viewed');
     Route::get('/calendar/{date}/versions', [CalendarController::class, 'versions'])->name('calendar.versions');
+    Route::get('/calendar/{date}/versions/{snapshot}/details', [CalendarController::class, 'versionDetails'])
+        ->whereNumber('snapshot')->name('calendar.version-details');
     Route::get('/calendar/{date}/versions/{document}/{snapshot}', [CalendarController::class, 'version'])
         ->whereIn('document', ['labels', 'di'])->whereNumber('snapshot')
         ->name('calendar.version')->middleware('throttle:30,1');

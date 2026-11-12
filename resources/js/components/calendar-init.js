@@ -122,9 +122,6 @@ export function calendarInit() {
     }
   }
 
-  // After a download: check mark; if Infor changed the data afterwards, a warning instead
-  // One mark per document, the most important first: changed after the download,
-  // changed by Infor lately (not downloaded since), downloaded
   // The server flags a document as new until this user opens its day (change.new)
   function markSeen(date) {
     const info = documentsByDay[date];
@@ -138,12 +135,20 @@ export function calendarInit() {
     return true;
   }
 
+  // After a download: check mark; if Infor changed the data afterwards, a warning instead
+  // One mark per document, the most important first: changed after the download,
+  // changed by Infor lately (not downloaded since), downloaded
+  // A short text badge: "New" (solid, until this user opens the day) or what Infor did lately
+  function changeBadge(text, solid = false) {
+    const tone = solid ? "bg-brand-500 text-white" : "bg-brand-50 text-brand-600 dark:bg-brand-500/15 dark:text-brand-400";
+    return `<span class="ms-1 shrink-0 rounded-full px-1.5 py-px text-[9px] font-semibold uppercase leading-tight sm:text-[10px] ${tone}">${text}</span>`;
+  }
+
   function statusIcon(download, change, newMark = false) {
-    if (newMark) {
-      return `<span class="ms-1 shrink-0 rounded-full bg-brand-500 px-1.5 py-px text-[9px] font-semibold uppercase leading-tight text-white sm:text-[10px]">${texts.new}</span>`;
-    }
-    if (!download?.changed && change?.recent && !(download && download.at >= change.at)) {
-      return `<span class="ms-1 shrink-0 text-brand-500 dark:text-brand-400" title="${texts.updated}" aria-label="${texts.updated}"><svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2M21 4v5h-5M3 20v-5h5" /></svg></span>`;
+    if (newMark) return changeBadge(texts.changeKinds.new, true);
+    // New ones that were opened already show nothing more; modified or removed ones, until downloaded again
+    if (change?.kind !== "new" && !download?.changed && change?.recent && !(download && download.at >= change.at)) {
+      return changeBadge(texts.changeKinds[change.kind] ?? texts.updated);
     }
     return downloadIcon(download);
   }

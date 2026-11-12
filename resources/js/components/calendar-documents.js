@@ -31,14 +31,14 @@ export function calendarDocuments({ urls, texts, locale }) {
         view: null,
         details: null,
         detailsDate: null,
+        // The version being looked at in the details view, or null for the current document
+        detailsVersion: null,
         loadingDetails: false,
         detailsError: false,
         search: '',
         versions: {},
         versionsDate: null,
         versionsLoaded: false,
-        // Labels details: one search for the shortages and one for all the lines
-        shortSearch: '',
         lineSearch: '',
         // Downloads being prepared, by "kind-date"; a second click on the same one is ignored
         pending: {},
@@ -70,25 +70,28 @@ export function calendarDocuments({ urls, texts, locale }) {
         },
 
         // Loads the day once and keeps it while the modal shows that same day
-        async showDetails(kind) {
+        // With a version (from the list of versions) it shows the document as it was then
+        async showDetails(kind, version = null) {
             this.view = kind;
+            this.detailsVersion = version;
             this.search = '';
-            this.shortSearch = '';
             this.lineSearch = '';
             const date = this.day.date;
-            if (this.detailsDate === date && this.details) return;
+            const key = `${date}|${version?.snapshot ?? 'current'}`;
+            if (this.detailsDate === key && this.details) return;
 
             this.details = null;
             this.detailsError = false;
             this.loadingDetails = true;
             try {
-                const response = await fetch(urls.details.replace('__DATE__', date), { headers: { Accept: 'application/json' } });
+                const url = version ? urls.versionDetails.replace('__DATE__', date).replace('__SNAP__', version.snapshot) : urls.details.replace('__DATE__', date);
+                const response = await fetch(url, { headers: { Accept: 'application/json' } });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const details = await response.json();
                 // Another day may have been opened meanwhile
                 if (this.day.date !== date) return;
                 this.details = details;
-                this.detailsDate = date;
+                this.detailsDate = key;
             } catch (e) {
                 if (this.day.date === date) this.detailsError = true;
             } finally {
@@ -116,9 +119,6 @@ export function calendarDocuments({ urls, texts, locale }) {
                 ));
                 return rows.length ? [{ ...part, rows }] : [];
             });
-        },
-        get filteredShortages() {
-            return this.rowsMatching(this.details?.shortages, this.shortSearch, ['part', 'description', 'pending', 'received', 'quantity']);
         },
         get filteredLines() {
             return this.rowsMatching(this.details?.labels, this.lineSearch, ['part', 'description', 'order', 'shift', 'warehouse', 'quantity', 'pending']);
@@ -175,9 +175,15 @@ export function calendarDocuments({ urls, texts, locale }) {
         versionName(version) {
             return version.original ? texts.versionOriginal : texts.changeKinds[version.kind];
         },
-        versionUrl(kind, version, inline) {
+        // mode: 'pdf' or 'excel' (both download)
+        versionUrl(kind, version, mode) {
             const url = urls.version.replace('__DATE__', this.day.date).replace('__DOC__', kind).replace('__SNAP__', version.snapshot);
-            return inline ? `${url}?ver=1` : url;
+            return mode === 'excel' ? `${url}?formato=excel` : url;
+        },
+        // "Original · 12 nov, 4:24 p.m." for the header of a version being looked at
+        get detailsVersionText() {
+            const version = this.detailsVersion;
+            return version ? `${this.versionName(version)} · ${this.shortDateTime(version.at)}` : '';
         },
         async loadVersions(kind) {
             if (this.versionsDate === this.day.date) return;

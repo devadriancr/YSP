@@ -20,6 +20,7 @@
             'diExcel' => route('calendar.delivery-instruction.excel', ['date' => '__DATE__']),
             'details' => route('calendar.details', ['date' => '__DATE__']),
             'versions' => route('calendar.versions', ['date' => '__DATE__']),
+            'versionDetails' => route('calendar.version-details', ['date' => '__DATE__', 'snapshot' => '__SNAP__']),
             'version' => route('calendar.version', ['date' => '__DATE__', 'document' => '__DOC__', 'snapshot' => '__SNAP__']),
         ],
         'texts' => [
@@ -73,7 +74,7 @@
     <div class="custom-calendar relative">
         <div id="calendar" data-events='@json($events)' data-documents-url="{{ route('calendar.documents') }}" data-viewed-url="{{ route('calendar.viewed', '__date__') }}"
             data-available-from="{{ $availableFrom }}" data-visible-from="{{ $visibleFrom }}"
-            data-i18n="{{ json_encode(['labels' => __('Etiquetas'), 'di' => __('Instrucción de entrega'), 'more' => __('más'), 'downloaded' => __('Descargada'), 'changed' => __('Cambió después de la descarga'), 'updated' => __('Infor actualizó este día'), 'new' => __('Nuevo'), 'receivedOf' => __(':received de :ordered pzs recibidas (:percent%)')]) }}"></div>
+            data-i18n="{{ json_encode(['labels' => __('Etiquetas'), 'di' => __('Instrucción de entrega'), 'more' => __('más'), 'downloaded' => __('Descargada'), 'changed' => __('Cambió después de la descarga'), 'updated' => __('Infor actualizó este día'), 'changeKinds' => ['new' => __('Nuevo'), 'modified' => __('Modificado'), 'removed' => __('Eliminado')], 'receivedOf' => __(':received de :ordered pzs recibidas (:percent%)')]) }}"></div>
     </div>
 
     <x-calendar.day-modal />

@@ -281,9 +281,11 @@ test('a changed day keeps its original and each change as a version that can be 
         ->and($versions[1])->toMatchArray(['original' => false, 'kind' => 'modified']);
 
     foreach ($versions as $version) {
-        $response = $this->get("/calendar/2026-10-21/versions/labels/{$version['snapshot']}?ver=1")
+        $this->get("/calendar/2026-10-21/versions/labels/{$version['snapshot']}")
             ->assertOk()->assertHeader('Content-Type', 'application/pdf');
-        expect($response->headers->get('Content-Disposition'))->toStartWith('inline');
+        // The same version, to look at inside the modal: what it had then, without received pieces
+        $this->getJson("/calendar/2026-10-21/versions/{$version['snapshot']}/details")
+            ->assertOk()->assertJsonPath('version', true)->assertJsonPath('shortages', []);
     }
 
     // The original has the old quantity: 25 pieces are 3 boxes of 10; the change has 40 pieces, 4 boxes
@@ -294,4 +296,23 @@ test('a changed day keeps its original and each change as a version that can be 
     // Another vendor's snapshot is not reachable
     $other = \App\Models\Vendor::create(['number' => 400999, 'name' => 'OTHER']);
     $this->get("/calendar/2026-10-21/versions/labels/{$other->documentSnapshots()->create(['taken_at' => now(), 'payload' => ''])->id}")->assertNotFound();
+});
+
+test('an old version of the delivery instruction can also be downloaded as Excel', function () {
+    $this->travelTo('2026-10-20 09:00');
+    $payload = fn (float $quantity) => ['delivery_rows' => [
+        ['part_number' => 'BDTS-28-911A', 'origin' => 'FP', 'quantity' => $quantity, 'due_date' => '2026-10-22'],
+    ]] + vendorPayload();
+
+    signedPost('/api/sync/vendors/400191', $payload(40))->assertOk();
+    signedPost('/api/sync/vendors/400191', $payload(60), timestamp: time() + 1)->assertOk();
+
+    $vendor = \App\Models\Vendor::firstWhere('number', 400191);
+    $user = \App\Models\User::factory()->create();
+    $user->vendors()->attach($vendor->id);
+    $versions = $this->actingAs($user)->getJson('/calendar/2026-10-22/versions')->json('di');
+
+    $response = $this->get("/calendar/2026-10-22/versions/di/{$versions[0]['snapshot']}?formato=excel")->assertOk();
+    expect($response->headers->get('Content-Type'))->toContain('spreadsheetml')
+        ->and($response->headers->get('Content-Disposition'))->toContain('.xlsx');
 });

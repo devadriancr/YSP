@@ -12,7 +12,7 @@
             x-transition:leave="transition ease-in duration-150"
             x-transition:leave-start="opacity-100" x-transition:leave-end="opacity-0"
             class="relative flex max-h-[calc(100dvh-2rem)] w-full flex-col rounded-2xl border border-gray-200 bg-white shadow-theme-lg sm:max-h-[calc(100dvh-3rem)] dark:border-gray-800 dark:bg-gray-900"
-            :class="view === 'labels' ? 'max-w-7xl' : (view ? 'max-w-3xl' : 'max-w-xl')">
+            :class="view === 'labels' ? 'max-w-5xl' : (view ? 'max-w-3xl' : 'max-w-3xl')">
 
             {{-- Header: the day, its kind in the work calendar and close --}}
             <div class="flex items-start gap-3 px-5 pt-6 pb-5 sm:px-7">
@@ -21,7 +21,7 @@
                 </x-ui.icon-button>
                 <div class="min-w-0 flex-1">
                     <p class="text-sm text-gray-500 capitalize dark:text-gray-400"
-                        x-text="view ? (view === 'labels' ? texts.names.labels : texts.names.di) : weekday"></p>
+                        x-text="view ? (view === 'labels' ? texts.names.labels : texts.names.di) + (detailsVersion ? ' · ' + detailsVersionText : '') : weekday"></p>
                     <h3 id="day-modal-title" class="text-lg font-semibold text-gray-800 dark:text-white/90" x-text="longDate"></h3>
                     <span x-show="day.workday && !view" x-cloak
                         class="mt-1.5 inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium"

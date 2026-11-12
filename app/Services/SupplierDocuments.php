@@ -176,9 +176,10 @@ class SupplierDocuments
 
         return [
             'labels' => $labels->all(),
-            'shortages' => $this->shortages($labels),
+            // A snapshot does not keep what was received: no shortages, and the view hides those columns
+            'shortages' => $this->snapshot ? [] : $this->shortages($labels),
             'di' => $this->deliveryInstructionDetails($date),
-        ];
+        ] + ($this->snapshot ? ['version' => true] : []);
     }
 
     /**
