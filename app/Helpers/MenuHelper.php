@@ -95,6 +95,7 @@ class MenuHelper
         return [
             ['icon' => 'users', 'name' => 'Usuarios', 'path' => '/users'],
             ['icon' => 'sync', 'name' => 'Sincronizaciones', 'path' => '/admin/sync-runs'],
+            ['icon' => 'users', 'name' => 'Actividad de proveedores', 'path' => '/admin/activity'],
             [
                 'icon' => 'tables',
                 'name' => 'Datos de Infor',

@@ -67,9 +67,9 @@
     <x-calendar.toolbar :vendors="$vendors" :vendor="$vendor" />
 
     <div class="custom-calendar relative">
-        <div id="calendar" data-events='@json($events)' data-documents-url="{{ route('calendar.documents') }}"
+        <div id="calendar" data-events='@json($events)' data-documents-url="{{ route('calendar.documents') }}" data-viewed-url="{{ route('calendar.viewed', '__date__') }}"
             data-available-from="{{ $availableFrom }}" data-visible-from="{{ $visibleFrom }}"
-            data-i18n="{{ json_encode(['labels' => __('Etiquetas'), 'di' => __('Instrucción de entrega'), 'more' => __('más'), 'downloaded' => __('Descargada'), 'changed' => __('Cambió después de la descarga'), 'updated' => __('Infor actualizó este día'), 'receivedOf' => __(':received de :ordered pzs recibidas (:percent%)')]) }}"></div>
+            data-i18n="{{ json_encode(['labels' => __('Etiquetas'), 'di' => __('Instrucción de entrega'), 'more' => __('más'), 'downloaded' => __('Descargada'), 'changed' => __('Cambió después de la descarga'), 'updated' => __('Infor actualizó este día'), 'new' => __('Nuevo'), 'receivedOf' => __(':received de :ordered pzs recibidas (:percent%)')]) }}"></div>
     </div>
 
     <x-calendar.day-modal />

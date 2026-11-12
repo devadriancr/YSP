@@ -28,7 +28,7 @@ function vendorWithData(int $number, string $name): Vendor
     return $vendor;
 }
 
-$pages = ['/admin/sync-runs', '/admin/vendors', '/admin/part-numbers', '/admin/purchase-order-lines', '/admin/delivery-rows', '/admin/work-calendars'];
+$pages = ['/admin/sync-runs', '/admin/vendors', '/admin/part-numbers', '/admin/purchase-order-lines', '/admin/delivery-rows', '/admin/work-calendars', '/admin/activity'];
 
 test('the data pages are only for admins', function (string $page) {
     $this->actingAs(userWithRole(User::SUPPLIER))->get($page)->assertForbidden();
@@ -126,4 +126,28 @@ test('planners and admins are saved without assigned vendors', function () {
     expect($planner->role)->toBe('planner')
         ->and($planner->vendors)->toBeEmpty()
         ->and($planner->visibleVendors()->pluck('number')->all())->toBe([400010]);
+});
+
+
+test('the activity page lists who downloaded and who opened what is new, by vendor', function () {
+    $hiruta = vendorWithData(400010, 'HIRUTA MEXICO');
+    $other = vendorWithData(400110, 'SK TEC MEXICANA');
+    $ana = User::factory()->create(['name' => 'Ana Proveedor']);
+    $hiruta->documentDownloads()->create([
+        'user_id' => $ana->id, 'user_name' => 'Ana Proveedor', 'user_role' => User::SUPPLIER, 'document' => 'labels',
+        'date' => '2026-10-20', 'fingerprint' => 'x', 'downloaded_at' => '2026-10-19 09:30:00',
+    ]);
+    $change = $hiruta->documentChanges()->create([
+        'document' => 'di', 'date' => '2026-10-21', 'detected_at' => '2026-10-19 08:00',
+        'parts' => [['part' => 'P1', 'before' => null, 'after' => 5]],
+    ]);
+    \App\Models\DocumentView::create(['user_id' => $ana->id, 'document_change_id' => $change->id, 'viewed_at' => '2026-10-19 10:15:00']);
+    $admin = userWithRole(User::ADMIN);
+
+    $this->actingAs($admin)->get('/admin/activity')
+        ->assertSee('Ana Proveedor')->assertSee('19/10/2026 09:30:00')->assertSee('19/10/2026 10:15:00')
+        ->assertSee('Descarga')->assertSee('Vio lo nuevo');
+
+    $this->actingAs($admin)->get("/admin/activity?proveedor={$other->id}")->assertDontSee('Ana Proveedor');
+    $this->actingAs($admin)->get('/admin/activity?tipo=view')->assertSee('10:15:00')->assertDontSee('09:30:00');
 });

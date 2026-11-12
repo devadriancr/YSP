@@ -80,6 +80,7 @@ export function calendarInit() {
             document: true,
             download: info.downloads?.labels ?? null,
             change: info.changes?.labels ?? null,
+            isNew: info.changes?.labels?.new ?? false,
             receipt: info.receipt ?? null,
           },
         });
@@ -90,7 +91,8 @@ export function calendarInit() {
           title: texts.di,
           start: date,
           allDay: true,
-          extendedProps: { type: "di", document: true, download: info.downloads?.di ?? null, change: info.changes?.di ?? null },
+          extendedProps: { type: "di", document: true, download: info.downloads?.di ?? null, change: info.changes?.di ?? null,
+            isNew: info.changes?.di?.new ?? false },
         });
       }
     }
@@ -123,7 +125,23 @@ export function calendarInit() {
   // After a download: check mark; if Infor changed the data afterwards, a warning instead
   // One mark per document, the most important first: changed after the download,
   // changed by Infor lately (not downloaded since), downloaded
-  function statusIcon(download, change) {
+  // The server flags a document as new until this user opens its day (change.new)
+  function markSeen(date) {
+    const info = documentsByDay[date];
+    const types = ["labels", "di"].filter((type) => info?.changes?.[type]?.new);
+    if (!types.length) return false;
+    for (const type of types) info.changes[type].new = false;
+    fetch(`${calendarEl.dataset.viewedUrl.replace("__date__", date)}`, {
+      method: "POST",
+      headers: { Accept: "application/json", "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]')?.content ?? "" },
+    }).catch((error) => console.error("Could not register the view", error));
+    return true;
+  }
+
+  function statusIcon(download, change, newMark = false) {
+    if (newMark) {
+      return `<span class="ms-1 shrink-0 rounded-full bg-brand-500 px-1.5 py-px text-[9px] font-semibold uppercase leading-tight text-white sm:text-[10px]">${texts.new}</span>`;
+    }
     if (!download?.changed && change?.recent && !(download && download.at >= change.at)) {
       return `<span class="ms-1 shrink-0 text-brand-500 dark:text-brand-400" title="${texts.updated}" aria-label="${texts.updated}"><svg class="size-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 0 1-15.5 6.2M3 12a9 9 0 0 1 15.5-6.2M21 4v5h-5M3 20v-5h5" /></svg></span>`;
     }
@@ -197,6 +215,7 @@ export function calendarInit() {
     const past = Boolean(availableFrom) && date < availableFrom;
     const workday = dayKinds[date] || null;
     window.dispatchEvent(new CustomEvent("calendar-day", { detail: { date, past, workday, ...info } }));
+    if (markSeen(date)) calendar.refetchEvents(); // opening the day clears its "new" flags
   }
 
   // Events come from the server as JSON in data-events:
@@ -426,7 +445,7 @@ export function calendarInit() {
             <div class="flex items-center">
               <div class="ms-0 me-1 h-2.5 w-1 shrink-0 rounded-full sm:me-2 sm:h-3.5 ${colors.dot}"></div>
               <div class="fc-event-title min-w-0 flex-1 truncate p-0 text-[11px] font-medium text-gray-700 sm:text-xs xl:text-sm dark:text-white">${eventInfo.event.title || ""}</div>
-              ${statusIcon(props.download, props.change)}
+              ${statusIcon(props.download, props.change, props.isNew)}
             </div>
             ${bar}
           </div>

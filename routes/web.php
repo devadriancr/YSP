@@ -26,6 +26,7 @@ Route::middleware('auth')->group(function () {
         ->name('calendar.delivery-instruction')->middleware('throttle:30,1');
     Route::get('/calendar/{date}/delivery-instruction/excel', [CalendarController::class, 'downloadDeliveryInstructionExcel'])
         ->name('calendar.delivery-instruction.excel')->middleware('throttle:30,1');
+    Route::post('/calendar/{date}/viewed', [CalendarController::class, 'markViewed'])->name('calendar.viewed');
     Route::get('/calendar/{date}/details', [CalendarController::class, 'details'])->name('calendar.details');
 
     // overdue parts and raw material not received (Infor YPU705B / YPU715B)
@@ -42,6 +43,7 @@ Route::middleware('auth')->group(function () {
     // data received from Infor and the syncs (admins only, read only)
     Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
         Route::get('/sync-runs', [Admin\SyncRunController::class, 'index'])->name('sync-runs.index');
+        Route::get('/activity', [Admin\ActivityController::class, 'index'])->name('activity.index');
         Route::get('/vendors', [Admin\VendorController::class, 'index'])->name('vendors.index');
         Route::get('/part-numbers', [Admin\PartNumberController::class, 'index'])->name('part-numbers.index');
         Route::get('/purchase-order-lines', [Admin\PurchaseOrderLineController::class, 'index'])->name('purchase-order-lines.index');

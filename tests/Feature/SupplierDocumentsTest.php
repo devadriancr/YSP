@@ -432,3 +432,28 @@ test('the calendar shows what infor changed from today on', function () {
         ->and($days['2026-10-20']['changes']['labels']['recent'])->toBeTrue()
         ->and($days['2026-10-21']['changes']['labels']['recent'])->toBeFalse(); // listed, but too old to mark the day
 });
+
+test('a new document stays new for each user until they open its day, and when is kept', function () {
+    $vendor = vendorWithLine(400191, '2026-10-20');
+    $vendor->documentChanges()->create([
+        'document' => 'labels', 'date' => '2026-10-20', 'detected_at' => '2026-10-15 08:00',
+        'parts' => [['part' => 'BDTS28911A', 'before' => null, 'after' => 25]],
+    ]);
+    $vendor->documentChanges()->create([
+        'document' => 'di', 'date' => '2026-10-20', 'detected_at' => '2026-10-15 08:00',
+        'parts' => [['part' => 'BDTS28911A', 'before' => 20, 'after' => 25]], // only a quantity change: not new
+    ]);
+    $ana = supplierOf($vendor);
+    $luis = supplierOf($vendor);
+    $range = '/calendar/documents?start=2026-10-01&end=2026-11-01';
+
+    $this->actingAs($ana)->getJson($range)
+        ->assertJsonPath('2026-10-20.changes.labels.new', true)
+        ->assertJsonPath('2026-10-20.changes.di.new', false);
+
+    $this->postJson('/calendar/2026-10-20/viewed')->assertOk();
+
+    $this->getJson($range)->assertJsonPath('2026-10-20.changes.labels.new', false);
+    $this->actingAs($luis)->getJson($range)->assertJsonPath('2026-10-20.changes.labels.new', true);
+    expect(\App\Models\DocumentView::where('user_id', $ana->id)->count())->toBe(1);
+});

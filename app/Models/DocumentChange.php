@@ -30,6 +30,12 @@ class DocumentChange extends Model
         ];
     }
 
+    // The whole document arrived in this sync: every part is new
+    public function isNew(): bool
+    {
+        return $this->parts !== [] && collect($this->parts)->every(fn (array $part) => $part['before'] === null);
+    }
+
     public function vendor(): BelongsTo
     {
         return $this->belongsTo(Vendor::class);

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Excel\DeliveryInstruction as DeliveryInstructionSheet;
 use App\Models\DocumentDownload;
+use App\Models\DocumentView;
 use App\Models\User;
 use App\Models\Vendor;
 use App\Models\WorkCalendar;
@@ -91,14 +92,14 @@ class CalendarController extends Controller
         $documents = $this->documentsFor($request);
         $days = $this->withDownloads($documents, $documents->calendarSummary($from, $to), $from, $to);
 
-        return response()->json($this->withChanges($changes, $documents->vendor(), $days, $from, $to));
+        return response()->json($this->withChanges($changes, $documents->vendor(), $request->user(), $days, $from, $to));
     }
 
     /**
      * Adds what Infor changed on each day from today on: the parts and when it was found.
      * "recent" marks the day in the calendar; older changes are only listed in the day.
      */
-    private function withChanges(DocumentChanges $changes, Vendor $vendor, array $days, CarbonImmutable $from, CarbonImmutable $to): array
+    private function withChanges(DocumentChanges $changes, Vendor $vendor, User $user, array $days, CarbonImmutable $from, CarbonImmutable $to): array
     {
         $from = $from->max(CarbonImmutable::today());
         if ($to->lt($from)) {
@@ -106,12 +107,18 @@ class CalendarController extends Controller
         }
 
         $recentSince = now()->subDays(DocumentChanges::RECENT_DAYS);
-        foreach ($changes->latest($vendor, $from, $to) as $date => $documents) {
+        $latest = $changes->latest($vendor, $from, $to);
+        $viewed = DocumentView::where('user_id', $user->id)
+            ->whereIn('document_change_id', collect($latest)->flatten()->pluck('id'))
+            ->pluck('document_change_id')->flip();
+        foreach ($latest as $date => $documents) {
             $days[$date] ??= ['labels' => 0, 'di' => 0];
             foreach ($documents as $document => $change) {
                 $days[$date]['changes'][$document] = [
                     'at' => $change->detected_at->timezone(config('app.timezone'))->toIso8601String(),
                     'recent' => $change->detected_at->gte($recentSince),
+                    // Whole document arrived and this user has not opened the day since
+                    'new' => $change->detected_at->gte($recentSince) && $change->isNew() && ! $viewed->has($change->id),
                     'parts' => $change->parts,
                 ];
             }
@@ -130,6 +137,26 @@ class CalendarController extends Controller
         $day = $this->parseVisibleDay($date);
 
         return response()->json($this->documentsFor($request)->details($day));
+    }
+
+    /**
+     * The user opened a day: its new documents stop being new for them, and when is kept.
+     */
+    public function markViewed(Request $request, DocumentChanges $changes, string $date): JsonResponse
+    {
+        $day = $this->parseVisibleDay($date);
+        $vendor = $this->documentsFor($request)->vendor();
+
+        foreach ($changes->latest($vendor, $day, $day)[$day->toDateString()] ?? [] as $change) {
+            if ($change->isNew()) {
+                DocumentView::firstOrCreate(
+                    ['user_id' => $request->user()->id, 'document_change_id' => $change->id],
+                    ['viewed_at' => now()],
+                );
+            }
+        }
+
+        return response()->json(['ok' => true]);
     }
 
     public function downloadLabels(Request $request, string $date): Response
