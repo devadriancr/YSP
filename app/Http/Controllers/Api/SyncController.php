@@ -49,6 +49,7 @@ class SyncController extends Controller
         'part_number' => ['required', 'string', 'max:35'],
         'number' => ['required', 'integer', 'min:0'],
         'line' => ['required', 'integer', 'min:0', 'max:65535'],
+        'order_type' => ['nullable', 'string', 'max:2'],
         'item_class' => ['nullable', 'string', 'max:2'],
         'quantity' => ['required', 'numeric'],
         'received_quantity' => ['nullable', 'numeric', 'min:0'],

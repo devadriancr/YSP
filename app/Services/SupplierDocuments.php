@@ -7,7 +7,6 @@ use App\Models\PartNumber as PartNumberModel;
 use App\Models\PurchaseOrderLine;
 use App\Models\UnreceivedLine;
 use App\Models\Vendor;
-use App\Models\WorkCalendar;
 use App\Support\InforCalendar;
 use App\Support\PartNumber;
 use Carbon\CarbonImmutable;
@@ -206,7 +205,7 @@ class SupplierDocuments
 
     /**
      * Overdue PO lines not fully received, the most late first, split like the Infor
-     * reports: parts (YPU705B) and raw material (YPU715B). Days late are working days.
+     * reports: parts (YPU705B) and raw material (YPU715B). Days late are calendar days, like YPU705B.
      *
      * @return array{parts: list<array>, materials: list<array>}
      */
@@ -214,6 +213,7 @@ class SupplierDocuments
     {
         $lines = $this->vendor->unreceivedLines()
             ->with('partNumber')
+            ->where('order_type', 'PO') // Infor HPOL86: the PZ lines are not on YPU705B/715B
             ->whereDate('due_date', '<', $today->toDateString())
             ->whereDate('due_date', '>=', UnreceivedLine::since()->toDateString())
             ->get()
@@ -222,13 +222,6 @@ class SupplierDocuments
         if ($lines->isEmpty()) {
             return ['parts' => [], 'materials' => []];
         }
-
-        $years = WorkCalendar::query()
-            ->where('facility', config('portal.calendar.facility'))
-            ->where('work_center', config('portal.calendar.work_center'))
-            ->pluck('days', 'year')
-            ->all();
-        $worked = InforCalendar::workingDayCount($lines->min('due_date'), $today, $years);
 
         $rows = $lines->map(fn (UnreceivedLine $line) => [
             'raw_material' => $line->isRawMaterial(),
@@ -241,7 +234,7 @@ class SupplierDocuments
             'due_date' => $line->due_date->toDateString(),
             'quantity' => (float) $line->quantity,
             'pending' => (float) $line->quantity - (float) $line->received_quantity,
-            'days_late' => $worked[$today->toDateString()] - $worked[$line->due_date->toDateString()],
+            'days_late' => (int) $line->due_date->startOfDay()->diffInDays($today->startOfDay()),
             'unit' => $line->unit(),
             'material' => $line->material,
             'symbol' => $line->symbol,

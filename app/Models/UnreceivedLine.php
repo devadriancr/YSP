@@ -12,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class UnreceivedLine extends Model
 {
     protected $fillable = [
-        'vendor_id', 'part_number_id', 'number', 'line', 'item_class', 'quantity', 'received_quantity',
+        'vendor_id', 'part_number_id', 'number', 'line', 'order_type', 'item_class', 'quantity', 'received_quantity',
         'due_date', 'material', 'symbol', 'thickness', 'width', 'length',
     ];
 

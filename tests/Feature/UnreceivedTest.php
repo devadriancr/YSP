@@ -2,7 +2,6 @@
 
 use App\Models\User;
 use App\Models\Vendor;
-use App\Models\WorkCalendar;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 
@@ -19,7 +18,7 @@ function vendorWithUnreceived(int $number, array $lines): Vendor
 
     foreach ($lines as $i => $line) {
         $vendor->unreceivedLines()->create([
-            'part_number_id' => $part->id, 'number' => 500 + $i, 'line' => 1, 'item_class' => 'P1', 'received_quantity' => 0, ...$line,
+            'part_number_id' => $part->id, 'number' => 500 + $i, 'line' => 1, 'order_type' => 'PO', 'item_class' => 'P1', 'received_quantity' => 0, ...$line,
         ]);
     }
 
@@ -35,23 +34,7 @@ function unreceivedSupplierOf(Vendor ...$vendors): User
 }
 
 // Infor work calendar of 2026: weekends are rest days and Wednesday 14 October a holiday
-function workCalendar2026(): void
-{
-    $days = '';
-    for ($day = CarbonImmutable::create(2026, 1, 1); $day->year === 2026; $day = $day->addDay()) {
-        $days .= $day->isWeekend() ? 'W' : ($day->toDateString() === '2026-10-14' ? 'H' : ' ');
-    }
-
-    WorkCalendar::create([
-        'facility' => config('portal.calendar.facility'),
-        'work_center' => config('portal.calendar.work_center'),
-        'year' => 2026,
-        'days' => str_pad($days, 366),
-    ]);
-}
-
-test('overdue lines are split in parts and raw material, with the working days late', function () {
-    workCalendar2026();
+test('overdue lines are split in parts and raw material, with the calendar days late', function () {
     $vendor = vendorWithUnreceived(400191, [
         ['quantity' => 100, 'received_quantity' => 40, 'due_date' => '2026-10-12'],
         ['quantity' => 1500.5, 'received_quantity' => 500, 'due_date' => '2026-10-01', 'item_class' => 'T1',
@@ -64,18 +47,21 @@ test('overdue lines are split in parts and raw material, with the working days l
 
     $lines = $response->viewData('lines');
     expect($lines['parts'])->toHaveCount(1)
-        ->and($lines['parts'][0])->toMatchArray(['part' => 'BDTS28911A', 'order' => '500-1', 'order_no' => '000005000001','pending' => 60.0, 'days_late' => 2])
+        ->and($lines['parts'][0])->toMatchArray(['part' => 'BDTS28911A', 'order' => '500-1', 'order_no' => '000005000001','pending' => 60.0, 'days_late' => 3])
         ->and($lines['materials'])->toHaveCount(1)
-        // Oct 2 to 15 without weekends and the holiday
-        ->and($lines['materials'][0])->toMatchArray(['pending' => 1000.5, 'days_late' => 9, 'unit' => 'KG', 'material' => 'SPCC', 'thickness' => 1.6]);
+        ->and($lines['materials'][0])->toMatchArray(['pending' => 1000.5, 'days_late' => 14, 'unit' => 'KG', 'material' => 'SPCC', 'thickness' => 1.6]);
 });
 
-test('without the work calendar of a year the days late count monday to friday', function () {
-    $vendor = vendorWithUnreceived(400191, [['quantity' => 5, 'due_date' => '2026-10-09']]);
+test('lines that are not PO (PZ) or have no type are not listed', function () {
+    $vendor = vendorWithUnreceived(400191, [
+        ['quantity' => 5, 'due_date' => '2026-10-09'],
+        ['quantity' => 6, 'due_date' => '2026-10-09', 'order_type' => 'PZ'],
+        ['quantity' => 7, 'due_date' => '2026-10-09', 'order_type' => null],
+    ]);
 
     $lines = $this->actingAs(unreceivedSupplierOf($vendor))->get('/unreceived')->viewData('lines');
 
-    expect($lines['parts'][0]['days_late'])->toBe(4); // Mon 12 to Thu 15
+    expect($lines['parts'])->toHaveCount(1)->and($lines['parts'][0]['quantity'])->toBe(5.0);
 });
 
 test('a supplier only sees the lines of their own vendor', function () {
@@ -132,7 +118,7 @@ function syncUnreceived(array $lines, bool $send = true): void
     ];
     if ($send) {
         $payload['unreceived_lines'] = collect($lines)->map(fn ($qty, $order) => [
-            'part_number' => 'BDTS28911A', 'number' => $order, 'line' => 1, 'item_class' => 'P1',
+            'part_number' => 'BDTS28911A', 'number' => $order, 'line' => 1, 'order_type' => 'PO', 'item_class' => 'P1',
             'quantity' => $qty[0], 'received_quantity' => $qty[1], 'due_date' => '2026-10-12',
         ])->values()->all();
     }

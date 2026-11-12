@@ -3,22 +3,27 @@
 namespace Database\Seeders;
 
 use App\Models\User;
-// use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Hash;
 
 class DatabaseSeeder extends Seeder
 {
     /**
-     * Seed the application's database.
+     * Creates the first administrator. It does not use the factory: Faker is a dev dependency
+     * and the server installs without them. Running it again leaves an existing user as it is.
      */
     public function run(): void
     {
-        // User::factory(10)->create();
+        $user = User::firstOrNew(['email' => 'jesus.camacho@ykm.com.mx']);
 
-        User::factory()->create([
-            'name' => 'Adrian Camacho',
-            'email' => 'jesus.camacho@ykm.com.mx',
-            'password' => bcrypt('password'),
-        ]);
+        if (! $user->exists) {
+            // role is not fillable on purpose, so it is set with forceFill
+            $user->forceFill([
+                'name' => 'Adrian Camacho',
+                'password' => Hash::make('password'),
+                'role' => User::ADMIN,
+                'email_verified_at' => now(),
+            ])->save();
+        }
     }
 }
