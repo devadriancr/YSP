@@ -29,9 +29,9 @@
     <x-admin.list-card :paginator="$runs" :action="route('admin.sync-runs.index')" :filtered="$filtered"
         empty="Aún no llega ninguna sincronización desde Supply Relay.">
         <x-slot:filters>
-            <x-admin.filter :label="__('Estado')" name="estado" type="select" :options="$statuses" :value="$status" class="lg:w-44" />
-            <x-admin.filter :label="__('Tipo')" name="tipo" type="select" :options="$types" :value="$type" class="lg:w-48" />
-            <x-admin.filter :label="__('Proveedor')" name="proveedor" type="select" :options="$vendors" :value="$vendor" class="lg:w-72" />
+            <x-admin.multi-filter :label="__('Estado')" name="estado" :options="$statuses" :selected="$status" class="lg:w-48" />
+            <x-admin.multi-filter :label="__('Tipo')" name="tipo" :options="$types" :selected="$type" class="lg:w-52" />
+            <x-admin.multi-filter :label="__('Proveedor')" name="proveedor" :options="$vendors" :selected="$vendor" class="lg:w-80" />
             <x-admin.filter :label="__('Desde')" name="desde" type="date" :value="$from" />
             <x-admin.filter :label="__('Hasta')" name="hasta" type="date" :value="$to" />
         </x-slot:filters>

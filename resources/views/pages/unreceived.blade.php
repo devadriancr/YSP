@@ -142,16 +142,25 @@
                         </div>
 
                         <label for="unreceived-sort" class="sr-only">{{ __('Ordenar') }}</label>
-                        <select id="unreceived-sort" x-model="sort"
-                            class="shadow-theme-xs h-10 rounded-lg border border-gray-300 bg-transparent ps-3 pe-9 text-sm text-gray-800 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 focus:outline-hidden dark:border-gray-700 dark:bg-gray-900 dark:text-white/90">
-                            <option value="oldest">{{ __('Más antiguo primero') }}</option>
-                            <option value="newest">{{ __('Más reciente primero') }}</option>
-                        </select>
+                        <div class="relative">
+                            <select id="unreceived-sort" x-model="sort"
+                                class="shadow-theme-xs h-10 w-full cursor-pointer appearance-none rounded-lg border border-gray-300 bg-white ps-4 pe-10 text-sm text-gray-700 transition hover:bg-gray-50 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 focus:outline-hidden sm:w-auto dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-white/5">
+                                <option value="oldest">{{ __('Más antiguo primero') }}</option>
+                                <option value="newest">{{ __('Más reciente primero') }}</option>
+                            </select>
+                            <span class="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-gray-500 dark:text-gray-400">
+                                <svg class="size-5" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.79 7.4 10 12.6l5.21-5.2" /></svg>
+                            </span>
+                        </div>
                         <div class="relative sm:w-80">
                             <span class="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-gray-400"><x-svg.search /></span>
                             <label for="unreceived-search" class="sr-only">{{ __('Buscar') }}</label>
                             <input id="unreceived-search" type="search" x-model="query" autocomplete="off"
-                                placeholder="{{ __('Buscar por parte, orden o material') }}" class="{{ $search }}">
+                                placeholder="{{ __('Buscar por parte, orden o material') }}" class="{{ str_replace('pe-3', 'pe-9', $search) }} [&::-webkit-search-cancel-button]:hidden">
+                            <button type="button" x-show="query" x-cloak @click="query = ''" aria-label="{{ __('Limpiar búsqueda') }}"
+                                class="absolute end-2 top-1/2 flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-gray-400 hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-white/10 dark:hover:text-gray-200">
+                                <svg class="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12" /></svg>
+                            </button>
                         </div>
                     </div>
                 </div>

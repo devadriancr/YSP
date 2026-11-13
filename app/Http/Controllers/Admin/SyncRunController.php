@@ -21,15 +21,16 @@ class SyncRunController extends Controller
 
     public function index(Request $request): View
     {
-        $vendor = $request->integer('proveedor') ?: null;
-        $status = (string) $request->query('estado');
-        $type = (string) $request->query('tipo');
+        // Each filter takes several values: ?estado[]=done&estado[]=failed
+        $vendor = array_values(array_filter(array_map('intval', (array) $request->query('proveedor'))));
+        $status = array_values(array_intersect((array) $request->query('estado'), array_keys(self::STATUSES)));
+        $type = array_values(array_intersect((array) $request->query('tipo'), array_keys(self::TYPES)));
 
         $runs = SyncRun::query()
             ->with('vendor:id,number,name')
-            ->when($vendor, fn ($query) => $query->where('vendor_id', $vendor))
-            ->when(isset(self::STATUSES[$status]), fn ($query) => $query->where('status', $status))
-            ->when(isset(self::TYPES[$type]), fn ($query) => $query->where('type', $type))
+            ->when($vendor, fn ($query) => $query->whereIn('vendor_id', $vendor))
+            ->when($status, fn ($query) => $query->whereIn('status', $status))
+            ->when($type, fn ($query) => $query->whereIn('type', $type))
             ->tap(fn ($query) => $this->betweenDates($query, $request, 'started_at'))
             ->latest('id')
             ->paginate(self::PER_PAGE)

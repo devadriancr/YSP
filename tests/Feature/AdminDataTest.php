@@ -151,3 +151,27 @@ test('the activity page lists who downloaded and who opened what is new, by vend
     $this->actingAs($admin)->get("/admin/activity?proveedor={$other->id}")->assertDontSee('Ana Proveedor');
     $this->actingAs($admin)->get('/admin/activity?tipo=view')->assertSee('10:15:00')->assertDontSee('09:30:00');
 });
+
+test('the sync runs filters take several values', function () {
+    $hiruta = vendorWithData(400010, 'HIRUTA MEXICO');
+    $sk = vendorWithData(400110, 'SK TEC MEXICANA');
+    foreach ([[$hiruta, SyncRun::DONE, 1111], [$sk, SyncRun::FAILED, 2222], [$sk, SyncRun::DONE, 3333]] as [$vendor, $status, $rows]) {
+        SyncRun::create(['type' => 'vendor', 'vendor_id' => $vendor->id, 'status' => $status, 'rows_received' => $rows, 'started_at' => now(), 'finished_at' => now()]);
+    }
+    $admin = userWithRole(User::ADMIN);
+
+    // Two statuses at once
+    $this->actingAs($admin)->get('/admin/sync-runs?'.http_build_query(['estado' => [SyncRun::DONE, SyncRun::FAILED]]))
+        ->assertSee('1,111')->assertSee('2,222')->assertSee('3,333');
+
+    // One status and two vendors
+    $this->actingAs($admin)->get('/admin/sync-runs?'.http_build_query(['estado' => [SyncRun::DONE], 'proveedor' => [$hiruta->id, $sk->id]]))
+        ->assertSee('1,111')->assertDontSee('2,222')->assertSee('3,333');
+
+    // Only one vendor; the old single value in the URL still works
+    $this->actingAs($admin)->get("/admin/sync-runs?proveedor={$hiruta->id}")
+        ->assertSee('1,111')->assertDontSee('2,222')->assertDontSee('3,333');
+
+    // Values that do not exist are ignored
+    $this->actingAs($admin)->get('/admin/sync-runs?estado[]=nope')->assertOk()->assertSee('1,111');
+});
