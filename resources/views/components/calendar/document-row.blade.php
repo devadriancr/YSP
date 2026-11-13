@@ -42,10 +42,13 @@
     {{-- A changed day lists its versions (the current one too) with view and download: no buttons here then --}}
     <div x-show="day.{{ $kind }} > 0 && !day.changes?.{{ $kind }}?.versioned" class="flex shrink-0 items-center gap-2">
         {{-- Outline buttons: blue to look at the details, grey to download --}}
-        <x-ui.icon-button :label="__('Ver detalle')" variant="brand-outline" x-on:click="showDetails('{{ $kind }}')">
-            <x-svg.eye />
-        </x-ui.icon-button>
+        @can('documents.details')
+            <x-ui.icon-button :label="__('Ver detalle')" variant="brand-outline" x-on:click="showDetails('{{ $kind }}')">
+                <x-svg.eye />
+            </x-ui.icon-button>
+        @endcan
 
+        @can($kind === 'labels' ? 'labels.download' : 'delivery.download')
         <template x-if="!day.past">
             @if ($excel)
                 {{-- Two formats: the download button opens a menu to choose PDF or Excel --}}
@@ -80,5 +83,6 @@
                 </x-ui.icon-button>
             @endif
         </template>
+        @endcan
     </div>
 </li>

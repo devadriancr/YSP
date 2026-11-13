@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UserRequest;
+use App\Models\Role;
 use App\Models\User;
 use App\Models\Vendor;
 use Illuminate\Http\RedirectResponse;
@@ -38,6 +39,7 @@ class UserController extends Controller
             'title' => 'Usuarios',
             'users' => $users,
             'search' => $search,
+            'roleNames' => Role::pluck('name', 'key'),
         ]);
     }
 
@@ -47,6 +49,7 @@ class UserController extends Controller
             'title' => 'Nuevo usuario',
             'user' => tap(new User, fn (User $user) => $user->role = User::SUPPLIER), // role is not fillable
             'vendors' => $this->vendorOptions(),
+            'roles' => $this->roleOptions(),
         ]);
     }
 
@@ -71,6 +74,7 @@ class UserController extends Controller
             'title' => 'Editar usuario',
             'user' => $user->load('vendors'),
             'vendors' => $this->vendorOptions(),
+            'roles' => $this->roleOptions(),
         ]);
     }
 
@@ -107,7 +111,19 @@ class UserController extends Controller
      */
     private function assignedVendors(UserRequest $request): array
     {
-        return $request->validated('role') === User::SUPPLIER ? $request->validated('vendors', []) : [];
+        return Role::where('key', $request->validated('role'))->first()?->allows('vendors.all') ? [] : $request->validated('vendors', []);
+    }
+
+    /**
+     * Roles for the select; "all" = sees every vendor, so no vendors are assigned to it.
+     *
+     * @return array<int, array{key: string, name: string, all: bool}>
+     */
+    private function roleOptions(): array
+    {
+        return Role::query()->orderBy('name')->get()
+            ->map(fn (Role $role) => ['key' => $role->key, 'name' => $role->name, 'all' => $role->allows('vendors.all')])
+            ->all();
     }
 
     /**

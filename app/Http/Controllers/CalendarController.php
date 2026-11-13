@@ -196,7 +196,18 @@ class CalendarController extends Controller
         $day = $this->parseVisibleDay($date);
         $vendor = $this->documentsFor($request)->vendor();
 
-        return response()->json((new SupplierDocuments($vendor, $vendor->documentSnapshots()->findOrFail($snapshot)))->details($day));
+        $version = $vendor->documentSnapshots()->findOrFail($snapshot);
+        $details = (new SupplierDocuments($vendor, $version))->details($day);
+
+        // Against the version before it: what is new, modified or gone is marked in the details
+        $previous = $vendor->documentSnapshots()->where('id', '<', $version->id)->orderByDesc('id')->first();
+        if ($previous) {
+            $documents = new SupplierDocuments($vendor, $previous);
+            $details = $documents->markChanges($details, $documents->details($day))
+                + ['comparedTo' => $previous->taken_at->toIso8601String()];
+        }
+
+        return response()->json($details);
     }
 
     /**

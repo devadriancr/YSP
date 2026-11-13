@@ -121,6 +121,7 @@
 
                     <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
                         {{-- Report of the open tab, like the Infor ones (YPU705B / YPU715B) --}}
+                        @can('unreceived.download')
                         <div x-data="{ formats: false }" class="relative" @click.outside="formats = false" @keydown.escape.stop="formats = false">
                             <button type="button" @click="formats = !formats" :aria-expanded="formats.toString()" aria-haspopup="menu"
                                 class="shadow-theme-xs inline-flex h-10 w-full items-center justify-center gap-2 rounded-lg border border-gray-300 bg-white px-4 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus-visible:ring-3 focus-visible:ring-brand-500/20 focus-visible:outline-none sm:w-auto dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:bg-white/5">
@@ -140,6 +141,7 @@
                                 </a>
                             </div>
                         </div>
+                        @endcan
 
                         <label for="unreceived-sort" class="sr-only">{{ __('Ordenar') }}</label>
                         <div class="relative">

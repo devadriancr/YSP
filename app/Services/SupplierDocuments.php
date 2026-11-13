@@ -183,6 +183,84 @@ class SupplierDocuments
     }
 
     /**
+     * The details of a version with what changed since the previous one: every line or row gets
+     * change = new | modified (with `was`, the old quantity), and what is gone comes back at the end
+     * as change = removed. The view paints them and leaves the removed ones out of the totals.
+     *
+     * @param  array  $details  details() of the version
+     * @param  array  $before  details() of the previous version
+     */
+    public function markChanges(array $details, array $before): array
+    {
+        $old = collect($before['labels'])->keyBy(fn (array $line) => "{$line['part']}|{$line['order']}");
+        $seen = [];
+        $labels = array_map(function (array $line) use ($old, &$seen) {
+            $key = "{$line['part']}|{$line['order']}";
+            $seen[$key] = true;
+            $was = $old[$key] ?? null;
+            if ($was === null) {
+                return $line + ['change' => 'new'];
+            }
+            $same = $was['quantity'] === $line['quantity'] && $was['shift'] === $line['shift'] && $was['warehouse'] === $line['warehouse'];
+
+            return $same ? $line : $line + ['change' => 'modified', 'was' => $was['quantity']];
+        }, $details['labels']);
+        foreach ($old as $key => $line) {
+            if (! isset($seen[$key])) {
+                $labels[] = ['change' => 'removed'] + $line;
+            }
+        }
+
+        $oldParts = collect($before['di'])->keyBy('part');
+        $di = [];
+        foreach ($details['di'] as $part) {
+            $was = $oldParts->pull($part['part']);
+            [$rows, $removed] = $this->markRows($part['rows'], $was['rows'] ?? []);
+            $di[] = ['rows' => [...$rows, ...$removed], 'change' => $was === null ? 'new' : null] + $part;
+        }
+        foreach ($oldParts as $part) {
+            $di[] = ['rows' => array_map(fn (array $row) => ['change' => 'removed'] + $row, $part['rows']), 'change' => 'removed'] + $part;
+        }
+
+        return ['labels' => $labels, 'di' => $di] + $details;
+    }
+
+    /**
+     * Rows of a part against the ones it had: [rows with their change, rows that are gone].
+     * A row is told apart by date, origin and order; two alike get a counter.
+     */
+    private function markRows(array $rows, array $before): array
+    {
+        $keyOf = function (array $row, array &$count) {
+            $key = "{$row['date']}|{$row['origin']}|{$row['order']}";
+            $count[$key] = ($count[$key] ?? 0) + 1;
+
+            return $key.'#'.$count[$key];
+        };
+
+        $old = [];
+        $count = [];
+        foreach ($before as $row) {
+            $old[$keyOf($row, $count)] = $row;
+        }
+
+        $count = [];
+        $marked = [];
+        foreach ($rows as $row) {
+            $key = $keyOf($row, $count);
+            $was = $old[$key] ?? null;
+            unset($old[$key]);
+            $marked[] = match (true) {
+                $was === null => $row + ['change' => 'new'],
+                $was['quantity'] !== $row['quantity'] => $row + ['change' => 'modified', 'was' => $was['quantity']],
+                default => $row,
+            };
+        }
+
+        return [$marked, array_map(fn (array $row) => ['change' => 'removed'] + $row, array_values($old))];
+    }
+
+    /**
      * Parts still missing on a day, the biggest first: one part may come in several PO lines.
      *
      * @return list<array{part: string, description: string|null, quantity: int, received: int, pending: int}>

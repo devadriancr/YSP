@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin;
 use App\Http\Controllers\CalendarController;
 use App\Http\Controllers\LocaleController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RoleController;
 use App\Http\Controllers\UnreceivedController;
 use App\Http\Controllers\UserController;
 
@@ -20,41 +21,51 @@ Route::middleware('auth')->group(function () {
     Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar');
     Route::get('/calendar/documents', [CalendarController::class, 'documents'])->name('calendar.documents');
     Route::post('/calendar/vendor', [CalendarController::class, 'selectVendor'])->name('calendar.vendor');
+    // What each button needs is set per role (config/permissions.php, Administración → Roles)
     Route::get('/calendar/{date}/identification-cards', [CalendarController::class, 'downloadLabels'])
-        ->name('calendar.labels')->middleware('throttle:30,1');
+        ->name('calendar.labels')->middleware(['can:labels.download', 'throttle:30,1']);
     Route::get('/calendar/{date}/delivery-instruction', [CalendarController::class, 'downloadDeliveryInstruction'])
-        ->name('calendar.delivery-instruction')->middleware('throttle:30,1');
+        ->name('calendar.delivery-instruction')->middleware(['can:delivery.download', 'throttle:30,1']);
     Route::get('/calendar/{date}/delivery-instruction/excel', [CalendarController::class, 'downloadDeliveryInstructionExcel'])
-        ->name('calendar.delivery-instruction.excel')->middleware('throttle:30,1');
+        ->name('calendar.delivery-instruction.excel')->middleware(['can:delivery.download', 'throttle:30,1']);
     Route::post('/calendar/{date}/viewed', [CalendarController::class, 'markViewed'])->name('calendar.viewed');
-    Route::get('/calendar/{date}/versions', [CalendarController::class, 'versions'])->name('calendar.versions');
-    Route::get('/calendar/{date}/versions/{snapshot}/details', [CalendarController::class, 'versionDetails'])
-        ->whereNumber('snapshot')->name('calendar.version-details');
-    Route::get('/calendar/{date}/versions/{document}/{snapshot}', [CalendarController::class, 'version'])
-        ->whereIn('document', ['labels', 'di'])->whereNumber('snapshot')
-        ->name('calendar.version')->middleware('throttle:30,1');
-    Route::get('/calendar/{date}/details', [CalendarController::class, 'details'])->name('calendar.details');
+    Route::middleware('can:versions.view')->group(function () {
+        Route::get('/calendar/{date}/versions', [CalendarController::class, 'versions'])->name('calendar.versions');
+        Route::get('/calendar/{date}/versions/{snapshot}/details', [CalendarController::class, 'versionDetails'])
+            ->whereNumber('snapshot')->name('calendar.version-details');
+        Route::get('/calendar/{date}/versions/{document}/{snapshot}', [CalendarController::class, 'version'])
+            ->whereIn('document', ['labels', 'di'])->whereNumber('snapshot')
+            ->name('calendar.version')->middleware('throttle:30,1');
+    });
+    Route::get('/calendar/{date}/details', [CalendarController::class, 'details'])
+        ->name('calendar.details')->middleware('can:documents.details');
 
     // overdue parts and raw material not received (Infor YPU705B / YPU715B)
-    Route::get('/unreceived', [UnreceivedController::class, 'index'])->name('unreceived');
+    Route::get('/unreceived', [UnreceivedController::class, 'index'])->name('unreceived')->middleware('can:unreceived.view');
     Route::get('/unreceived/{type}/{format}', [UnreceivedController::class, 'download'])
         ->whereIn('type', ['parts', 'materials'])->whereIn('format', ['pdf', 'excel'])
-        ->name('unreceived.download')->middleware('throttle:30,1');
+        ->name('unreceived.download')->middleware(['can:unreceived.download', 'throttle:30,1']);
 
     // users (admins only)
     Route::resource('users', UserController::class)
         ->except('show')
         ->middleware('admin');
+    Route::resource('roles', RoleController::class)
+        ->except('show')
+        ->middleware('admin');
 
     // data received from Infor and the syncs (admins only, read only)
-    Route::middleware('admin')->prefix('admin')->name('admin.')->group(function () {
-        Route::get('/sync-runs', [Admin\SyncRunController::class, 'index'])->name('sync-runs.index');
-        Route::get('/activity', [Admin\ActivityController::class, 'index'])->name('activity.index');
-        Route::get('/vendors', [Admin\VendorController::class, 'index'])->name('vendors.index');
-        Route::get('/part-numbers', [Admin\PartNumberController::class, 'index'])->name('part-numbers.index');
-        Route::get('/purchase-order-lines', [Admin\PurchaseOrderLineController::class, 'index'])->name('purchase-order-lines.index');
-        Route::get('/delivery-rows', [Admin\DeliveryRowController::class, 'index'])->name('delivery-rows.index');
-        Route::get('/work-calendars', [Admin\WorkCalendarController::class, 'index'])->name('work-calendars.index');
+    // (what each role can open is set in Administración → Roles; admins always can)
+    Route::prefix('admin')->name('admin.')->group(function () {
+        Route::get('/sync-runs', [Admin\SyncRunController::class, 'index'])->name('sync-runs.index')->middleware('can:sync-runs.view');
+        Route::get('/activity', [Admin\ActivityController::class, 'index'])->name('activity.index')->middleware('can:activity.view');
+        Route::middleware('can:infor-data.view')->group(function () {
+            Route::get('/vendors', [Admin\VendorController::class, 'index'])->name('vendors.index');
+            Route::get('/part-numbers', [Admin\PartNumberController::class, 'index'])->name('part-numbers.index');
+            Route::get('/purchase-order-lines', [Admin\PurchaseOrderLineController::class, 'index'])->name('purchase-order-lines.index');
+            Route::get('/delivery-rows', [Admin\DeliveryRowController::class, 'index'])->name('delivery-rows.index');
+            Route::get('/work-calendars', [Admin\WorkCalendarController::class, 'index'])->name('work-calendars.index');
+        });
     });
 
     // profile pages

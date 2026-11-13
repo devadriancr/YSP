@@ -44,7 +44,7 @@ class User extends Authenticatable
     // Plans the purchases: sees the calendar of every vendor, without managing users
     public const PLANNER = 'planner';
 
-    public const ROLES = [self::ADMIN, self::PLANNER, self::SUPPLIER];
+    public const BUILT_IN_ROLES = [self::ADMIN, self::PLANNER, self::SUPPLIER];
 
     // role is left out of $fillable on purpose: only an admin assigns it, like the vendors
 
@@ -59,11 +59,25 @@ class User extends Authenticatable
     }
 
     /**
-     * Planners and admins work with every vendor; suppliers only with the ones assigned to them.
+     * What the user's role allows (see config/permissions.php and Administración → Roles).
+     */
+    public function hasPermission(string $permission): bool
+    {
+        return $this->isAdmin() || ($this->roleDefinition()?->allows($permission) ?? false);
+    }
+
+    private function roleDefinition(): ?Role
+    {
+        // once(): the page asks several times, the role is read a single time
+        return once(fn () => Role::where('key', $this->role)->first());
+    }
+
+    /**
+     * Roles with the permission work with every vendor; the others only with the ones assigned to them.
      */
     public function seesAllVendors(): bool
     {
-        return in_array($this->role, [self::ADMIN, self::PLANNER], true);
+        return $this->hasPermission('vendors.all');
     }
 
     /**

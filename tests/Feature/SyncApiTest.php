@@ -288,6 +288,13 @@ test('a changed day keeps its original and each change as a version that can be 
             ->assertOk()->assertJsonPath('version', true)->assertJsonPath('shortages', []);
     }
 
+    // The change is compared to the version before it; the original has nothing to be compared to
+    $this->getJson("/calendar/2026-10-21/versions/{$versions[1]['snapshot']}/details")
+        ->assertJsonPath('labels.0.change', 'modified')->assertJsonPath('labels.0.was', 25)
+        ->assertJsonPath('labels.0.quantity', 40)->assertJsonStructure(['comparedTo']);
+    $this->getJson("/calendar/2026-10-21/versions/{$versions[0]['snapshot']}/details")
+        ->assertJsonMissingPath('comparedTo')->assertJsonMissingPath('labels.0.change');
+
     // The original has the old quantity: 25 pieces are 3 boxes of 10; the change has 40 pieces, 4 boxes
     $labels = fn (int $snapshot) => (new \App\Services\SupplierDocuments($vendor, \App\Models\DocumentSnapshot::find($snapshot)))
         ->labels(\Carbon\CarbonImmutable::parse('2026-10-21'))->count();

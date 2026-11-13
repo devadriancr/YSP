@@ -27,7 +27,7 @@
             </p>
         </div>
 
-        <div x-data="{ role: @js(old('role', $user->role)) }"
+        <div x-data="{ role: @js(old('role', $user->role)), noVendors: @js(collect($roles)->where('all', true)->pluck('key')->all()) }"
             class="grid grid-cols-1 gap-5 border-t border-gray-100 p-4 sm:p-6 lg:grid-cols-2 dark:border-gray-800">
             <x-form.field :label="__('Nombre')" name="name" :value="$user->name" :placeholder="__('Nombre y apellido')"
                 autocomplete="name" required />
@@ -47,15 +47,11 @@
                             'border-error-300 focus:border-error-300 focus:ring-error-500/10 dark:border-error-700' => $roleError,
                             'border-gray-300 focus:border-brand-300 focus:ring-brand-500/10 dark:border-gray-700 dark:focus:border-brand-800' => ! $roleError,
                         ])>
-                        <option value="supplier" @selected(old('role', $user->role) === 'supplier') class="text-gray-700 dark:bg-gray-900 dark:text-gray-400">
-                            {{ __('Proveedor') }}
-                        </option>
-                        <option value="planner" @selected(old('role', $user->role) === 'planner') class="text-gray-700 dark:bg-gray-900 dark:text-gray-400">
-                            {{ __('Planeador') }}
-                        </option>
-                        <option value="admin" @selected(old('role', $user->role) === 'admin') class="text-gray-700 dark:bg-gray-900 dark:text-gray-400">
-                            {{ __('Administrador') }}
-                        </option>
+                        @foreach ($roles as $roleOption)
+                            <option value="{{ $roleOption['key'] }}" @selected(old('role', $user->role) === $roleOption['key']) class="text-gray-700 dark:bg-gray-900 dark:text-gray-400">
+                                {{ $roleOption['name'] }}
+                            </option>
+                        @endforeach
                     </select>
                     <span class="pointer-events-none absolute end-4 top-1/2 z-30 -translate-y-1/2 text-gray-500 dark:text-gray-400">
                         <svg class="stroke-current" width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
@@ -85,7 +81,7 @@
                     toggle(id) {
                         this.selected = this.selected.includes(id) ? this.selected.filter(i => i !== id) : [...this.selected, id];
                     },
-                }" x-show="role === 'supplier'" class="relative" @click.outside="open = false" @keydown.escape="open = false">
+                }" x-show="!noVendors.includes(role)" class="relative" @click.outside="open = false" @keydown.escape="open = false">
                 <label id="vendors-label" class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-400">
                     {{ __('Proveedores (vendors)') }}
                 </label>

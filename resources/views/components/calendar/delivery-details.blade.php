@@ -5,6 +5,8 @@
 
 {{-- Delivery instruction issued that day: everything due from that day on, by part --}}
 <div>
+    <p x-show="details.comparedTo" x-cloak class="mb-3 text-xs text-gray-500 dark:text-gray-400"
+        x-text="texts.comparedTo.replace(':date', shortDateTime(details.comparedTo))"></p>
     <div class="relative mb-4">
         <span class="pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-gray-400"><x-svg.search /></span>
         <label for="di-search" class="sr-only">{{ __('Buscar') }}</label>
@@ -16,11 +18,11 @@
 
     <div class="space-y-2">
         <template x-for="part in filteredParts" :key="part.part">
-            <details class="group overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800" :open="search.trim() !== '' || filteredParts.length === 1">
+            <details class="group overflow-hidden rounded-xl border border-gray-200 dark:border-gray-800" :open="search.trim() !== '' || filteredParts.length === 1 || partChange(part) !== null">
                 <summary class="flex cursor-pointer list-none items-center gap-3 px-4 py-3 marker:hidden hover:bg-gray-50 dark:hover:bg-white/3">
                     <svg class="size-4 shrink-0 text-gray-400 transition-transform group-open:rotate-90 rtl:-scale-x-100" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
                     <span class="min-w-0 flex-1">
-                        <span class="block text-sm font-medium text-gray-800 dark:text-white/90" x-text="part.part"></span>
+                        <span class="block text-sm font-medium text-gray-800 dark:text-white/90"><span x-text="part.part"></span><span x-show="partChange(part)" x-cloak class="ms-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium" :class="changeTag(partChange(part))" x-text="texts.changeKinds[partChange(part)]"></span></span>
                         <span class="block truncate text-xs text-gray-500 dark:text-gray-400" x-text="part.description"></span>
                     </span>
                     <span class="shrink-0 text-end text-xs text-gray-500 tabular-nums dark:text-gray-400">
@@ -41,8 +43,8 @@
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                             <template x-for="(row, index) in part.rows" :key="index">
-                                <tr>
-                                    <td class="{{ $td }}" x-text="shortDate(row.date)"></td>
+                                <tr :class="changeTone(row.change)">
+                                    <td class="{{ $td }}"><span x-text="shortDate(row.date)"></span><span x-show="row.change" x-cloak class="ms-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium" :class="changeTag(row.change)" x-text="texts.changeKinds[row.change]"></span></td>
                                     <td class="px-3 py-2.5">
                                         <span class="inline-flex rounded-full px-2 py-0.5 text-xs font-medium"
                                             :class="{
@@ -53,7 +55,10 @@
                                             x-text="texts.origins[row.origin]"></span>
                                     </td>
                                     <td class="{{ $td }}" x-text="row.order || '—'"></td>
-                                    <td class="{{ $td }} text-end tabular-nums" x-text="num(row.quantity)"></td>
+                                    <td class="{{ $td }} text-end tabular-nums">
+                                        <span x-show="row.change === 'modified'" x-cloak class="me-1 text-gray-400 line-through" x-text="num(row.was)"></span>
+                                        <span x-text="num(row.quantity)"></span>
+                                    </td>
                                     <td class="{{ $td }} text-end font-medium tabular-nums" x-text="num(row.boxes)"></td>
                                 </tr>
                             </template>

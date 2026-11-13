@@ -49,6 +49,7 @@
             'complete' => __('completo'),
             'changeKinds' => ['new' => __('Nuevo'), 'modified' => __('Modificado'), 'removed' => __('Eliminado')],
             'versionOriginal' => __('Original'),
+            'comparedTo' => __('Se resalta lo que cambió respecto a la versión del :date.'),
             'versionCurrent' => __('Actual'),
             'versionView' => __('Ver'),
             'versionDownload' => __('Descargar'),

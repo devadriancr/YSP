@@ -6,12 +6,13 @@
 {{-- Infor changed this day (only today and later): a short note, and the versions to look at or download --}}
 <template x-if="day.changes?.{{ $kind }}">
     <details class="group mt-2 rounded-lg border border-brand-100 bg-brand-25 dark:border-brand-500/20 dark:bg-brand-500/10"
-        x-on:toggle="$event.target.open && loadVersions('{{ $kind }}')">
+        @can('versions.view') x-on:toggle="$event.target.open && loadVersions('{{ $kind }}')" @endcan>
         <summary class="flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-xs font-medium text-brand-700 marker:hidden dark:text-brand-300">
             <x-calendar.change-icon of="day.changes.{{ $kind }}.kind" />
             <span class="min-w-0 flex-1" x-text="changeText(day.changes.{{ $kind }})"></span>
             <x-svg.chevron-down class="size-3.5 shrink-0 transition-transform group-open:rotate-180" />
         </summary>
+        @can('versions.view')
         <ul class="space-y-1.5 border-t border-brand-100 px-3 py-2 text-xs dark:border-brand-500/20">
             <template x-for="(version, index) in versions['{{ $kind }}'] || []" :key="version.snapshot">
                 <li class="flex items-center justify-between gap-3">
@@ -61,5 +62,6 @@
             </template>
             <li x-show="versionsLoaded && !(versions['{{ $kind }}'] || []).length" x-cloak class="text-gray-500 dark:text-gray-400" x-text="texts.noVersions"></li>
         </ul>
+        @endcan
     </details>
 </template>

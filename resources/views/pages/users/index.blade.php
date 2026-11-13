@@ -59,13 +59,7 @@
                                 </div>
                             </td>
                             <td class="px-5 py-4 sm:px-6">
-                                @if ($user->isAdmin())
-                                    <x-ui.badge color="primary" size="sm">{{ __('Administrador') }}</x-ui.badge>
-                                @elseif ($user->role === 'planner')
-                                    <x-ui.badge color="info" size="sm">{{ __('Planeador') }}</x-ui.badge>
-                                @else
-                                    <x-ui.badge color="light" size="sm">{{ __('Proveedor') }}</x-ui.badge>
-                                @endif
+                                <x-ui.badge :color="$user->isAdmin() ? 'primary' : ($user->seesAllVendors() ? 'info' : 'light')" size="sm">{{ $roleNames[$user->role] ?? $user->role }}</x-ui.badge>
                             </td>
                             <td class="px-5 py-4 sm:px-6">
                                 <div class="flex max-w-xs flex-wrap gap-1.5">

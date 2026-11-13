@@ -132,7 +132,23 @@ export function calendarDocuments({ urls, texts, locale }) {
             return Number(value || 0).toLocaleString(dateLocale);
         },
         sum(rows, key) {
-            return (rows || []).reduce((total, row) => total + Number(row[key] || 0), 0);
+            // Rows marked as removed (version compared to the previous one) are not part of the totals
+            return (rows || []).reduce((total, row) => total + (row.change === 'removed' ? 0 : Number(row[key] || 0)), 0);
+        },
+        // Row colour and tag of what changed against the previous version
+        changeTone(change) {
+            return { new: 'bg-success-50/60 dark:bg-success-500/10', modified: 'bg-warning-50/60 dark:bg-warning-500/10', removed: 'bg-error-50/60 text-gray-400 line-through dark:bg-error-500/10' }[change] || '';
+        },
+        // A part is new or removed as a whole, or modified when any of its rows changed
+        partChange(part) {
+            return part.change || (part.rows.some((row) => row.change) ? 'modified' : null);
+        },
+        changeTag(change) {
+            return {
+                new: 'bg-success-50 text-success-600 dark:bg-success-500/15 dark:text-success-400',
+                modified: 'bg-warning-50 text-warning-600 dark:bg-warning-500/15 dark:text-warning-400',
+                removed: 'bg-error-50 text-error-600 dark:bg-error-500/15 dark:text-error-400',
+            }[change] || '';
         },
         shortDate(date) {
             return at(date).toLocaleDateString(dateLocale, { weekday: 'short', day: 'numeric', month: 'short' });

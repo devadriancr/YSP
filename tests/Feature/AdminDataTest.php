@@ -30,20 +30,36 @@ function vendorWithData(int $number, string $name): Vendor
 
 $pages = ['/admin/sync-runs', '/admin/vendors', '/admin/part-numbers', '/admin/purchase-order-lines', '/admin/delivery-rows', '/admin/work-calendars', '/admin/activity'];
 
-test('the data pages are only for admins', function (string $page) {
+test('the data pages follow the permissions of the role', function (string $page) {
     $this->actingAs(userWithRole(User::SUPPLIER))->get($page)->assertForbidden();
-    $this->actingAs(userWithRole(User::PLANNER))->get($page)->assertForbidden();
     $this->actingAs(userWithRole(User::ADMIN))->get($page)->assertOk();
+
+    // Planeador only has the activity of the vendors; Cadena de suministro, everything else
+    $planner = userWithRole(User::PLANNER);
+    $supplyChain = userWithRole('supply_chain');
+    if ($page === '/admin/activity') {
+        $this->actingAs($planner)->get($page)->assertOk();
+        $this->actingAs($supplyChain)->get($page)->assertForbidden();
+    } else {
+        $this->actingAs($planner)->get($page)->assertForbidden();
+        $this->actingAs($supplyChain)->get($page)->assertOk();
+    }
 })->with($pages);
 
-test('the admin menu group is only shown to admins', function () {
+test('the admin menu group shows only what the role can open', function () {
     $this->actingAs(userWithRole(User::ADMIN))->get('/calendar')
         ->assertSee('Administración')
-        ->assertSee('/admin/sync-runs', false);
+        ->assertSee('/admin/sync-runs', false)
+        ->assertSee('/users', false);
 
     $this->actingAs(userWithRole(User::PLANNER))->get('/calendar')
+        ->assertSee('/admin/activity', false)
+        ->assertDontSee('/admin/sync-runs', false)
+        ->assertDontSee('href="/users"', false);
+
+    $this->actingAs(userWithRole(User::SUPPLIER))->get('/calendar')
         ->assertDontSee('Administración')
-        ->assertDontSee('/admin/sync-runs', false);
+        ->assertDontSee('/admin/activity', false);
 });
 
 test('the lists show the synced data and filter it by vendor', function () {

@@ -7,6 +7,8 @@
 {{-- One root element: the view is shown with <template x-if>, which only renders the first one.
      A single table with every line; the ones still missing are marked in their row. --}}
 <div class="grid items-start gap-4">
+    <p x-show="details.comparedTo" x-cloak class="mb-3 text-xs text-gray-500 dark:text-gray-400"
+        x-text="texts.comparedTo.replace(':date', shortDateTime(details.comparedTo))"></p>
 
     {{-- Identification cards of the day: one row per purchase order line --}}
     <section aria-labelledby="lines-title" class="min-w-0">
@@ -34,15 +36,18 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
                     <template x-for="(line, index) in filteredLines" :key="index">
-                        <tr :class="!details.version && line.pending > 0 && (dayIsOver() ? 'bg-error-50/60 dark:bg-error-500/10' : 'bg-warning-50/60 dark:bg-warning-500/10')">
+                        <tr :class="line.change ? changeTone(line.change) : (!details.version && line.pending > 0 && (dayIsOver() ? 'bg-error-50/60 dark:bg-error-500/10' : 'bg-warning-50/60 dark:bg-warning-500/10'))">
                             <td class="px-3 py-2.5">
-                                <p class="text-sm font-medium whitespace-nowrap text-gray-800 dark:text-white/90" x-text="line.part"></p>
+                                <p class="text-sm font-medium whitespace-nowrap text-gray-800 dark:text-white/90"><span x-text="line.part"></span><span x-show="line.change" x-cloak class="ms-2 inline-flex rounded-full px-2 py-0.5 text-xs font-medium" :class="changeTag(line.change)" x-text="texts.changeKinds[line.change]"></span></p>
                                 <p class="text-xs text-gray-500 dark:text-gray-400" x-text="line.description"></p>
                             </td>
                             <td class="{{ $td }}" x-text="line.order"></td>
                             <td class="{{ $td }}" x-text="line.shift || '—'"></td>
                             <td class="{{ $td }}" x-text="line.warehouse || '—'"></td>
-                            <td class="{{ $td }} text-end tabular-nums" x-text="num(line.quantity)"></td>
+                            <td class="{{ $td }} text-end tabular-nums">
+                                <span x-show="line.change === 'modified' && line.was !== undefined" x-cloak class="me-1 text-gray-400 line-through" x-text="num(line.was)"></span>
+                                <span x-text="num(line.quantity)"></span>
+                            </td>
                             <td x-show="!details.version" class="{{ $td }} text-end tabular-nums" x-text="num(line.received)"></td>
                             <td x-show="!details.version" class="{{ $td }} text-end tabular-nums">
                                 <span x-show="line.pending === 0" class="font-medium text-success-600 dark:text-success-400">✓</span>

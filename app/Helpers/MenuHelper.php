@@ -12,11 +12,11 @@ class MenuHelper
                 'name' => 'Calendario',
                 'path' => '/calendar',
             ],
-            [
+            auth()->user()?->can('unreceived.view') ? [
                 'icon' => 'package',
                 'name' => 'Partes no recibidas',
                 'path' => '/unreceived',
-            ],
+            ] : null,
             // [
             //     'icon' => 'dashboard',
             //     'name' => 'Panel',
@@ -92,11 +92,14 @@ class MenuHelper
      */
     public static function getAdminItems()
     {
-        return [
-            ['icon' => 'users', 'name' => 'Usuarios', 'path' => '/users'],
-            ['icon' => 'sync', 'name' => 'Sincronizaciones', 'path' => '/admin/sync-runs'],
-            ['icon' => 'users', 'name' => 'Actividad de proveedores', 'path' => '/admin/activity'],
-            [
+        $user = auth()->user();
+
+        return array_values(array_filter([
+            $user?->isAdmin() ? ['icon' => 'users', 'name' => 'Usuarios', 'path' => '/users'] : null,
+            $user?->isAdmin() ? ['icon' => 'authentication', 'name' => 'Roles', 'path' => '/roles'] : null,
+            $user?->can('sync-runs.view') ? ['icon' => 'sync', 'name' => 'Sincronizaciones', 'path' => '/admin/sync-runs'] : null,
+            $user?->can('activity.view') ? ['icon' => 'users', 'name' => 'Actividad de proveedores', 'path' => '/admin/activity'] : null,
+            ! $user?->can('infor-data.view') ? null : [
                 'icon' => 'tables',
                 'name' => 'Datos de Infor',
                 'subItems' => [
@@ -107,7 +110,7 @@ class MenuHelper
                     ['name' => 'Calendario laboral', 'path' => '/admin/work-calendars'],
                 ],
             ],
-        ];
+        ]));
     }
 
     public static function getMenuGroups()
@@ -117,7 +120,7 @@ class MenuHelper
                 'title' => 'Menú',
                 'items' => self::getMainNavItems()
             ],
-            auth()->user()?->isAdmin() ? [
+            self::getAdminItems() ? [
                 'title' => 'Administración',
                 'items' => self::getAdminItems(),
             ] : null,
