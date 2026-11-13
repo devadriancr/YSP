@@ -382,5 +382,18 @@
     "Se resalta lo que cambió respecto a la versión del :date.": "Changes since the version of :date are highlighted.",
     "Ver la actividad de proveedores (Administración)": "See the vendor activity (Administration)",
     "Ver las sincronizaciones (Administración)": "See the synchronizations (Administration)",
-    "Ver los datos de Infor: proveedores, números de parte, etiquetas, instrucción de entrega y calendario laboral (Administración)": "See the Infor data: vendors, part numbers, labels, delivery instruction and work calendar (Administration)"
+    "Ver los datos de Infor: proveedores, números de parte, etiquetas, instrucción de entrega y calendario laboral (Administración)": "See the Infor data: vendors, part numbers, labels, delivery instruction and work calendar (Administration)",
+    "Ver detalle de documentos": "See document details",
+    "Descargar etiquetas": "Download labels",
+    "Descargar instrucción de entrega": "Download delivery instruction",
+    "Ver versiones anteriores": "See earlier versions",
+    "Descargar versiones anteriores": "Download earlier versions",
+    "Descargar partes no recibidas": "Download unreceived parts",
+    "Menú: Sincronizaciones": "Menu: Synchronizations",
+    "Menú: Actividad de proveedores": "Menu: Vendor activity",
+    "Menú Infor: Proveedores": "Infor menu: Vendors",
+    "Menú Infor: Números de parte": "Infor menu: Part numbers",
+    "Menú Infor: Etiquetas": "Infor menu: Labels",
+    "Menú Infor: Instrucción de entrega": "Infor menu: Delivery instruction",
+    "Menú Infor: Calendario laboral": "Infor menu: Work calendar"
 }

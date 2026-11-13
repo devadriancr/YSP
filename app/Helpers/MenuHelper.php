@@ -99,18 +99,24 @@ class MenuHelper
             $user?->isAdmin() ? ['icon' => 'authentication', 'name' => 'Roles', 'path' => '/roles'] : null,
             $user?->can('sync-runs.view') ? ['icon' => 'sync', 'name' => 'Sincronizaciones', 'path' => '/admin/sync-runs'] : null,
             $user?->can('activity.view') ? ['icon' => 'users', 'name' => 'Actividad de proveedores', 'path' => '/admin/activity'] : null,
-            ! $user?->can('infor-data.view') ? null : [
-                'icon' => 'tables',
-                'name' => 'Datos de Infor',
-                'subItems' => [
-                    ['name' => 'Proveedores', 'path' => '/admin/vendors'],
-                    ['name' => 'Números de parte', 'path' => '/admin/part-numbers'],
-                    ['name' => 'Etiquetas', 'path' => '/admin/purchase-order-lines'],
-                    ['name' => 'Instrucción de entrega', 'path' => '/admin/delivery-rows'],
-                    ['name' => 'Calendario laboral', 'path' => '/admin/work-calendars'],
-                ],
-            ],
+            self::inforItems($user),
         ]));
+    }
+
+    /**
+     * "Datos de Infor" with only the entries the user's role can open; nothing if there are none.
+     */
+    private static function inforItems($user): ?array
+    {
+        $subItems = array_values(array_filter([
+            $user?->can('infor.vendors') ? ['name' => 'Proveedores', 'path' => '/admin/vendors'] : null,
+            $user?->can('infor.parts') ? ['name' => 'Números de parte', 'path' => '/admin/part-numbers'] : null,
+            $user?->can('infor.labels') ? ['name' => 'Etiquetas', 'path' => '/admin/purchase-order-lines'] : null,
+            $user?->can('infor.delivery') ? ['name' => 'Instrucción de entrega', 'path' => '/admin/delivery-rows'] : null,
+            $user?->can('infor.calendar') ? ['name' => 'Calendario laboral', 'path' => '/admin/work-calendars'] : null,
+        ]));
+
+        return $subItems ? ['icon' => 'tables', 'name' => 'Datos de Infor', 'subItems' => $subItems] : null;
     }
 
     public static function getMenuGroups()

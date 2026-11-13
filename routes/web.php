@@ -35,7 +35,7 @@ Route::middleware('auth')->group(function () {
             ->whereNumber('snapshot')->name('calendar.version-details');
         Route::get('/calendar/{date}/versions/{document}/{snapshot}', [CalendarController::class, 'version'])
             ->whereIn('document', ['labels', 'di'])->whereNumber('snapshot')
-            ->name('calendar.version')->middleware('throttle:30,1');
+            ->name('calendar.version')->middleware(['can:versions.download', 'throttle:30,1']);
     });
     Route::get('/calendar/{date}/details', [CalendarController::class, 'details'])
         ->name('calendar.details')->middleware('can:documents.details');
@@ -59,13 +59,11 @@ Route::middleware('auth')->group(function () {
     Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/sync-runs', [Admin\SyncRunController::class, 'index'])->name('sync-runs.index')->middleware('can:sync-runs.view');
         Route::get('/activity', [Admin\ActivityController::class, 'index'])->name('activity.index')->middleware('can:activity.view');
-        Route::middleware('can:infor-data.view')->group(function () {
-            Route::get('/vendors', [Admin\VendorController::class, 'index'])->name('vendors.index');
-            Route::get('/part-numbers', [Admin\PartNumberController::class, 'index'])->name('part-numbers.index');
-            Route::get('/purchase-order-lines', [Admin\PurchaseOrderLineController::class, 'index'])->name('purchase-order-lines.index');
-            Route::get('/delivery-rows', [Admin\DeliveryRowController::class, 'index'])->name('delivery-rows.index');
-            Route::get('/work-calendars', [Admin\WorkCalendarController::class, 'index'])->name('work-calendars.index');
-        });
+        Route::get('/vendors', [Admin\VendorController::class, 'index'])->name('vendors.index')->middleware('can:infor.vendors');
+        Route::get('/part-numbers', [Admin\PartNumberController::class, 'index'])->name('part-numbers.index')->middleware('can:infor.parts');
+        Route::get('/purchase-order-lines', [Admin\PurchaseOrderLineController::class, 'index'])->name('purchase-order-lines.index')->middleware('can:infor.labels');
+        Route::get('/delivery-rows', [Admin\DeliveryRowController::class, 'index'])->name('delivery-rows.index')->middleware('can:infor.delivery');
+        Route::get('/work-calendars', [Admin\WorkCalendarController::class, 'index'])->name('work-calendars.index')->middleware('can:infor.calendar');
     });
 
     // profile pages

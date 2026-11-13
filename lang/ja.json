@@ -398,5 +398,18 @@
     "Se resalta lo que cambió respecto a la versión del :date.": ":date のバージョンからの変更点を強調表示しています。",
     "Ver la actividad de proveedores (Administración)": "仕入先のアクティビティを表示 (管理)",
     "Ver las sincronizaciones (Administración)": "同期を表示 (管理)",
-    "Ver los datos de Infor: proveedores, números de parte, etiquetas, instrucción de entrega y calendario laboral (Administración)": "Infor データを表示: 仕入先、部品番号、ラベル、納入指示、稼働カレンダー (管理)"
+    "Ver los datos de Infor: proveedores, números de parte, etiquetas, instrucción de entrega y calendario laboral (Administración)": "Infor データを表示: 仕入先、部品番号、ラベル、納入指示、稼働カレンダー (管理)",
+    "Ver detalle de documentos": "書類の詳細を表示",
+    "Descargar etiquetas": "ラベルをダウンロード",
+    "Descargar instrucción de entrega": "納入指示をダウンロード",
+    "Ver versiones anteriores": "過去のバージョンを表示",
+    "Descargar versiones anteriores": "過去のバージョンをダウンロード",
+    "Descargar partes no recibidas": "未入荷部品をダウンロード",
+    "Menú: Sincronizaciones": "メニュー: 同期",
+    "Menú: Actividad de proveedores": "メニュー: 仕入先アクティビティ",
+    "Menú Infor: Proveedores": "Infor メニュー: 仕入先",
+    "Menú Infor: Números de parte": "Infor メニュー: 部品番号",
+    "Menú Infor: Etiquetas": "Infor メニュー: ラベル",
+    "Menú Infor: Instrucción de entrega": "Infor メニュー: 納入指示",
+    "Menú Infor: Calendario laboral": "Infor メニュー: 稼働カレンダー"
 }

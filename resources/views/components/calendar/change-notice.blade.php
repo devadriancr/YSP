@@ -31,6 +31,7 @@
                             <x-svg.eye />
                         </x-ui.icon-button>
 
+@can('versions.download')
 @if ($kind === 'di')
                         {{-- Download: the menu chooses PDF or Excel --}}
                         <div x-data="{ menu: false }" class="relative" @click.outside="menu = false" @keydown.escape.stop="menu = false">
@@ -57,6 +58,7 @@
                             <x-svg.download />
                         </a>
 @endif
+@endcan
                     </div>
                 </li>
             </template>

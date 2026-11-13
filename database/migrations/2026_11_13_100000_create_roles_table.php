@@ -23,14 +23,14 @@ return new class extends Migration
         });
 
         $all = array_keys(config('permissions'));
-        $admin = ['activity.view', 'sync-runs.view', 'infor-data.view'];
-        $portal = array_values(array_diff($all, $admin));
+        $infor = ['infor.vendors', 'infor.parts', 'infor.labels', 'infor.delivery', 'infor.calendar'];
+        $portal = array_values(array_diff($all, ['activity.view', 'sync-runs.view'], $infor));
 
         foreach ([
             ['admin', 'Administrador', $all],
             // Planeación de proveedores also sees the activity of the vendors; Cadena de suministro, the syncs and the Infor data
             ['planner', 'Planeador', [...$portal, 'activity.view']],
-            ['supply_chain', 'Cadena de suministro', [...$portal, 'sync-runs.view', 'infor-data.view']],
+            ['supply_chain', 'Cadena de suministro', [...$portal, 'sync-runs.view', ...$infor]],
             ['supplier', 'Proveedor', array_values(array_diff($portal, ['vendors.all']))],
         ] as [$key, $name, $permissions]) {
             DB::table('roles')->insert([
