@@ -198,10 +198,9 @@
                                         <td class="px-4 py-3">
                                             <p class="flex items-center gap-2 text-sm font-medium whitespace-nowrap text-gray-800 dark:text-white/90">
                                                 <span x-text="row.part"></span>
-                                                {{-- What Infor changed in the last days (new line, or another pending quantity) --}}
-                                                <span x-show="row.change" class="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400"
-                                                    :title="row.change ? changeDate(row.change.at) : ''"
-                                                    x-text="row.change?.kind === 'new' ? @js(__('Nueva')) : @js(__('Actualizada'))"></span>
+                                                {{-- Another pending quantity set by Infor in the last days (new lines get no badge) --}}
+                                                <span x-show="row.change && row.change.kind !== 'new'" class="rounded-full bg-brand-50 px-2 py-0.5 text-xs font-semibold text-brand-600 dark:bg-brand-500/15 dark:text-brand-400"
+                                                    :title="row.change ? changeDate(row.change.at) : ''">{{ __('Actualizada') }}</span>
                                             </p>
                                             <p class="text-xs text-gray-500 dark:text-gray-400" x-text="row.description"></p>
                                         </td>
